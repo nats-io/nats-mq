@@ -9,10 +9,10 @@ Simple bridge between NATS streaming and MQ Series
 The go [mq series library](https://github.com/ibm-messaging/mq-golang) requires the client libraries. These are referenced from the readme, except for [MacOS which are available here](https://developer.ibm.com/messaging/2019/02/05/ibm-mq-macos-toolkit-for-developers/).
 
 ```bash
-% export MQ_INSTALLATION_PATH=<your installation library>
-% export CGO_LDFLAGS_ALLOW="-Wl,-rpath.*"
-% export CGO_CFLAGS="-I$MQ_INSTALLATION_PATH/inc"
-% export CGO_LDFLAGS="-L$MQ_INSTALLATION_PATH/lib64 -Wl,-rpath,$MQ_INSTALLATION_PATH/lib64"
+export MQ_INSTALLATION_PATH=<your installation library>
+export CGO_LDFLAGS_ALLOW="-Wl,-rpath.*"
+export CGO_CFLAGS="-I$MQ_INSTALLATION_PATH/inc"
+export CGO_LDFLAGS="-L$MQ_INSTALLATION_PATH/lib64 -Wl,-rpath,$MQ_INSTALLATION_PATH/lib64"
  ```
 
  *Note there is a typo on the web page, missing `-rpath` and has `rpath` instead.

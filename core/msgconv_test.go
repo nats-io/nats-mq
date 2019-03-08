@@ -3,6 +3,7 @@ package core
 import (
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -11,11 +12,11 @@ func TestExcludeHeadersIgnoresMQMD(t *testing.T) {
 	msg := "hello world"
 	msgBytes := []byte(msg)
 
-	result, err := MQToNATSMessage(nil, msgBytes, len(msgBytes), true)
+	result, err := mqToNATSMessage(nil, EmptyHandle, msgBytes, len(msgBytes), nil)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(result))
 
-	result, mqmd, err := NATSToMQMessage(msgBytes, true)
+	mqmd, _, result, err := natsToMQMessage(msgBytes, nil)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(result))
 
@@ -28,6 +29,11 @@ func TestExcludeHeadersIgnoresMQMD(t *testing.T) {
 }
 
 func TestMQMDTranslation(t *testing.T) {
+	mqServer, qMgr, err := StartMQTestServer(5 * time.Second)
+	require.NoError(t, err)
+	defer qMgr.Disc()
+	defer mqServer.Close()
+
 	msg := "hello world"
 	msgBytes := []byte(msg)
 
@@ -62,13 +68,43 @@ func TestMQMDTranslation(t *testing.T) {
 	expected.MsgFlags = 23
 	expected.OriginalLength = 24
 
-	encoded, err := MQToNATSMessage(expected, msgBytes, len(msgBytes), false)
+	cmho := ibmmq.NewMQCMHO()
+	handleIn, err := qMgr.CrtMH(cmho)
+	require.NoError(t, err)
+
+	smpo := ibmmq.NewMQSMPO()
+	pd := ibmmq.NewMQPD()
+	err = handleIn.SetMP(smpo, "one", pd, "alpha")
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "two", pd, int32(356))
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "three", pd, float32(3.0))
+	require.NoError(t, err)
+
+	encoded, err := mqToNATSMessage(expected, handleIn, msgBytes, len(msgBytes), qMgr)
 	require.NoError(t, err)
 	require.NotEqual(t, msg, string(encoded))
 
-	result, mqmd, err := NATSToMQMessage(encoded, false)
+	mqmd, handleOut, result, err := natsToMQMessage(encoded, qMgr)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(result))
+
+	impo := ibmmq.NewMQIMPO()
+	pd = ibmmq.NewMQPD()
+	impo.Options = ibmmq.MQIMPO_CONVERT_VALUE
+	_, value, err := handleOut.InqMP(impo, pd, "one")
+	require.NoError(t, err)
+	require.Equal(t, "alpha", value.(string))
+
+	_, value, err = handleOut.InqMP(impo, pd, "two")
+	require.NoError(t, err)
+	require.Equal(t, int64(356), value.(int64))
+
+	_, value, err = handleOut.InqMP(impo, pd, "three")
+	require.NoError(t, err)
+	require.Equal(t, 3.0, value.(float64))
+
+	require.Equal(t, expected.OriginalLength, mqmd.OriginalLength)
 
 	/* Some fields aren't copied, we will test some of these on 1 way
 	require.Equal(t, expected.Version, mqmd.Version)

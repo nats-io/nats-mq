@@ -7,8 +7,8 @@ import (
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 )
 
-// Queue2NATSConnector connects an MQ queue to a NATS subject
-type Queue2NATSConnector struct {
+// Queue2STANConnector connects an MQ queue to a NATS subject
+type Queue2STANConnector struct {
 	sync.Mutex
 
 	config ConnectionConfig
@@ -19,30 +19,30 @@ type Queue2NATSConnector struct {
 	ctlo  *ibmmq.MQCTLO
 }
 
-// NewQueue2NATSConnector create a new MQ to Stan connector
-func NewQueue2NATSConnector(bridge *BridgeServer, config ConnectionConfig) Connector {
-	return &Queue2NATSConnector{
+// NewQueue2STANConnector create a new MQ to Stan connector
+func NewQueue2STANConnector(bridge *BridgeServer, config ConnectionConfig) Connector {
+	return &Queue2STANConnector{
 		config: config,
 		bridge: bridge,
 	}
 }
 
-func (mq *Queue2NATSConnector) String() string {
-	return fmt.Sprintf("Queue:%s to NATS:%s", mq.config.Queue, mq.config.Subject)
+func (mq *Queue2STANConnector) String() string {
+	return fmt.Sprintf("Queue:%s to STAN:%s", mq.config.Queue, mq.config.Subject)
 }
 
 // Config returns the configuraiton for this connector
-func (mq *Queue2NATSConnector) Config() ConnectionConfig {
+func (mq *Queue2STANConnector) Config() ConnectionConfig {
 	return mq.config
 }
 
 // Start the connector
-func (mq *Queue2NATSConnector) Start() error {
+func (mq *Queue2STANConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.bridge.nats == nil {
-		return fmt.Errorf("%s connector requires nats to be available", mq.String())
+	if mq.bridge.stan == nil {
+		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
 	}
 
 	mqconfig := mq.config.MQ
@@ -100,7 +100,7 @@ func (mq *Queue2NATSConnector) Start() error {
 	return nil
 }
 
-func (mq *Queue2NATSConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
+func (mq *Queue2STANConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
 	if mqErr != nil && mqErr.MQCC != ibmmq.MQCC_OK {
 		if mqErr.MQRC == ibmmq.MQRC_NO_MSG_AVAILABLE {
 			mq.bridge.Logger.Tracef("message timeout on %s", mq.String())
@@ -128,10 +128,10 @@ func (mq *Queue2NATSConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQ
 		mq.bridge.Logger.Noticef("failed to convert message for %s, %s", mq.String(), err.Error())
 	}
 
-	err = mq.bridge.nats.Publish(mq.config.Subject, natsMsg)
+	err = mq.bridge.stan.Publish(mq.config.Channel, natsMsg)
 
 	if err != nil {
-		mq.bridge.Logger.Noticef("NATS publish failure, %s", mq.String(), err.Error())
+		mq.bridge.Logger.Noticef("STAN publish failure, %s", mq.String(), err.Error())
 		mq.qMgr.Back()
 	} else {
 		mq.qMgr.Cmit()
@@ -139,7 +139,7 @@ func (mq *Queue2NATSConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQ
 }
 
 // Shutdown the connector
-func (mq *Queue2NATSConnector) Shutdown() error {
+func (mq *Queue2STANConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
 

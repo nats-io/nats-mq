@@ -2,14 +2,14 @@ package core
 
 import (
 	"fmt"
-	"github.com/nats-io/go-nats"
+	"github.com/nats-io/go-nats-streaming"
 	"sync"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 )
 
-// NATS2QueueConnector connects a NATS subject to an MQ queue
-type NATS2QueueConnector struct {
+// Stan2QueueConnector connects a STAN channel to an MQ Queue
+type Stan2QueueConnector struct {
 	sync.Mutex
 
 	config ConnectionConfig
@@ -18,33 +18,33 @@ type NATS2QueueConnector struct {
 	qMgr  *ibmmq.MQQueueManager
 	queue *ibmmq.MQObject
 
-	sub *nats.Subscription
+	sub stan.Subscription
 }
 
-// NewNATS2QueueConnector create a nats to MQ connector
-func NewNATS2QueueConnector(bridge *BridgeServer, config ConnectionConfig) Connector {
-	return &NATS2QueueConnector{
+// NewStan2QueueConnector create a new Stan to MQ connector
+func NewStan2QueueConnector(bridge *BridgeServer, config ConnectionConfig) Connector {
+	return &Stan2QueueConnector{
 		config: config,
 		bridge: bridge,
 	}
 }
 
-func (mq *NATS2QueueConnector) String() string {
-	return fmt.Sprintf("NATS:%s to Queue:%s", mq.config.Subject, mq.config.Queue)
+func (mq *Stan2QueueConnector) String() string {
+	return fmt.Sprintf("STAN:%s to Queue:%s", mq.config.Channel, mq.config.Queue)
 }
 
 // Config returns the configuraiton for this connector
-func (mq *NATS2QueueConnector) Config() ConnectionConfig {
+func (mq *Stan2QueueConnector) Config() ConnectionConfig {
 	return mq.config
 }
 
 // Start the connector
-func (mq *NATS2QueueConnector) Start() error {
+func (mq *Stan2QueueConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.bridge.nats == nil {
-		return fmt.Errorf("%s connector requires nats to be available", mq.String())
+	if mq.bridge.stan == nil {
+		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
 	}
 
 	mqconfig := mq.config.MQ
@@ -75,7 +75,7 @@ func (mq *NATS2QueueConnector) Start() error {
 
 	mq.queue = &qObject
 
-	sub, err := mq.bridge.nats.Subscribe(mq.config.Subject, mq.messageHandler)
+	sub, err := mq.bridge.stan.Subscribe(mq.config.Channel, mq.messageHandler)
 
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (mq *NATS2QueueConnector) Start() error {
 	return nil
 }
 
-func (mq *NATS2QueueConnector) messageHandler(m *nats.Msg) {
+func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
 	qmgrFlag := mq.qMgr
 
 	if mq.config.ExcludeHeaders {
@@ -111,7 +111,7 @@ func (mq *NATS2QueueConnector) messageHandler(m *nats.Msg) {
 }
 
 // Shutdown the connector
-func (mq *NATS2QueueConnector) Shutdown() error {
+func (mq *Stan2QueueConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
 

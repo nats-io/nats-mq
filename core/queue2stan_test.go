@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	nats "github.com/nats-io/go-nats"
+	stan "github.com/nats-io/go-nats-streaming"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSimpleSendOnQueueReceiveOnNats(t *testing.T) {
-	subject := "test"
+func TestSimpleSendOnQueueReceiveOnStan(t *testing.T) {
+	channel := "test"
 	queue := "DEV.QUEUE.1"
 	msg := "hello world"
 
 	connect := []ConnectionConfig{
 		ConnectionConfig{
-			Type:           "Queue2NATS",
-			Subject:        subject,
+			Type:           "Queue2Stan",
+			Channel:        channel,
 			Queue:          queue,
 			ExcludeHeaders: true,
 		},
@@ -31,7 +31,7 @@ func TestSimpleSendOnQueueReceiveOnNats(t *testing.T) {
 	received := ""
 	done := make(chan bool)
 
-	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
+	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
 		received = string(msg.Data)
 		done <- true
 	})
@@ -44,9 +44,9 @@ func TestSimpleSendOnQueueReceiveOnNats(t *testing.T) {
 	require.Equal(t, msg, received)
 }
 
-func TestSendOnQueueReceiveOnNatsMQMD(t *testing.T) {
+func TestSendOnQueueReceiveOnStanMQMD(t *testing.T) {
 	start := time.Now().UTC()
-	subject := "test"
+	channel := "test"
 	queue := "DEV.QUEUE.1"
 	msg := "hello world"
 	id := bytes.Repeat([]byte{1}, int(ibmmq.MQ_MSG_ID_LENGTH))
@@ -54,8 +54,8 @@ func TestSendOnQueueReceiveOnNatsMQMD(t *testing.T) {
 
 	connect := []ConnectionConfig{
 		ConnectionConfig{
-			Type:           "Queue2NATS",
-			Subject:        subject,
+			Type:           "Queue2Stan",
+			Channel:        channel,
 			Queue:          queue,
 			ExcludeHeaders: false,
 		},
@@ -68,7 +68,7 @@ func TestSendOnQueueReceiveOnNatsMQMD(t *testing.T) {
 	var received []byte
 	done := make(chan bool)
 
-	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
+	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
 		received = msg.Data
 		done <- true
 	})

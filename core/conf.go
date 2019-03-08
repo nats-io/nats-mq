@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/logging"
 )
 
@@ -40,6 +41,12 @@ func DefaultBridgeConfig() BridgeConfig {
 			Debug:  true,
 			Trace:  true,
 		},
+		STAN: NATSStreamingConnectionConfig{
+			PubAckWait:         5000,
+			DiscoverPrefix:     stan.DefaultDiscoverPrefix,
+			MaxPubAcksInflight: stan.DefaultMaxPubAcksInflight,
+			ConnectWait:        2000,
+		},
 	}
 }
 
@@ -74,6 +81,13 @@ type NATSConnectionConfig struct {
 
 // NATSStreamingConnectionConfig configuration for a STAN connection
 type NATSStreamingConnectionConfig struct {
+	ClusterID string
+	ClientID  string
+
+	PubAckWait         int //milliseconds
+	DiscoverPrefix     string
+	MaxPubAcksInflight int
+	ConnectWait        int // milliseconds
 }
 
 // ConnectionConfig configuration for a bridge connection (of any type)
@@ -83,7 +97,7 @@ type ConnectionConfig struct {
 	Channel string // used for stan connections
 	Subject string // Used for nats connections
 
-	MQ    MQConnectionConfig // connection information
+	MQ    MQConnectionConfig // connection information, nats connections are shared
 	Topic string             // Used for the mq side of things
 	Queue string
 

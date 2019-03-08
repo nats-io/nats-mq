@@ -9,6 +9,7 @@ import (
 	"time"
 
 	nats "github.com/nats-io/go-nats"
+	stan "github.com/nats-io/go-nats-streaming"
 )
 
 var version = "0.0.0-dev"
@@ -23,7 +24,7 @@ type BridgeServer struct {
 	Logger    logging.Logger
 
 	nats *nats.Conn
-	stan *nats.Conn
+	stan stan.Conn
 
 	connectors []Connector
 }
@@ -116,6 +117,10 @@ func (bridge *BridgeServer) Start() error {
 		return err
 	}
 
+	if err := bridge.connectToSTAN(); err != nil {
+		return err
+	}
+
 	if err := bridge.initializeConnectors(); err != nil {
 		return err
 	}
@@ -148,6 +153,11 @@ func (bridge *BridgeServer) Stop() {
 		bridge.nats.Close()
 		bridge.Logger.Noticef("disconnected from NATS")
 	}
+
+	if bridge.stan != nil {
+		bridge.stan.Close()
+		bridge.Logger.Noticef("disconnected from NATS streaming")
+	}
 }
 
 func (bridge *BridgeServer) initializeConnectors() error {
@@ -171,6 +181,10 @@ func (bridge *BridgeServer) createConnector(config ConnectionConfig) (Connector,
 		return NewQueue2NATSConnector(bridge, config), nil
 	case NATS2Queue:
 		return NewNATS2QueueConnector(bridge, config), nil
+	case Queue2Stan:
+		return NewQueue2STANConnector(bridge, config), nil
+	case Stan2Queue:
+		return NewStan2QueueConnector(bridge, config), nil
 	default:
 		return nil, fmt.Errorf("unknown connector type %q in configuration", config.Type)
 	}

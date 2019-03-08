@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nuid"
 	"log"
 	"os/exec"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	gnatsserver "github.com/nats-io/gnatsd/server"
 	gnatsd "github.com/nats-io/gnatsd/test"
 	nats "github.com/nats-io/go-nats"
+	stan "github.com/nats-io/go-nats-streaming"
+	nss "github.com/nats-io/nats-streaming-server/server"
 )
 
 // TestEnv encapsulate a bridge test environment
@@ -20,7 +23,10 @@ type TestEnv struct {
 	QMgr     *ibmmq.MQQueueManager // For bypassing the bridge connection
 
 	Gnatsd *gnatsserver.Server
-	NC     *nats.Conn // for bypassing the bridge
+	Stan   *nss.StanServer
+
+	NC *nats.Conn // for bypassing the bridge
+	SC stan.Conn  // for bypassing the bridge
 
 	Bridge *BridgeServer
 	Config *BridgeConfig
@@ -29,7 +35,7 @@ type TestEnv struct {
 // StartTestEnvironment sreates a new test environment and bridge server
 // The MQ setting on the connectionconfigs will be filled in
 func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
-	tbs := TestEnv{}
+	tbs := &TestEnv{}
 
 	mqServer, qmgr, err := StartMQTestServer(5 * time.Second)
 	if err != nil {
@@ -42,18 +48,51 @@ func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
 	opts.Port = -1
 	tbs.Gnatsd = gnatsd.RunServer(&opts)
 
-	nc, err := nats.Connect(fmt.Sprintf("nats://localhost:%d", opts.Port))
+	natsServerURL := fmt.Sprintf("nats://localhost:%d", opts.Port)
+
+	clusterName := nuid.Next()
+	sOpts := nss.GetDefaultOptions()
+	sOpts.ID = clusterName
+	sOpts.NATSServerURL = natsServerURL
+	nOpts := nss.DefaultNatsServerOptions
+	nOpts.Port = -1
+
+	s, err := nss.RunServerWithOpts(sOpts, &nOpts)
 	if err != nil {
+		tbs.Close()
+		return nil, err
+	}
+
+	tbs.Stan = s
+
+	nc, err := nats.Connect(natsServerURL)
+	if err != nil {
+		tbs.Close()
 		return nil, err
 	}
 	tbs.NC = nc
 
+	sc, err := stan.Connect(clusterName, nuid.Next(), stan.NatsConn(tbs.NC))
+	if err != nil {
+		tbs.Close()
+		return nil, err
+	}
+	tbs.SC = sc
+
 	config := DefaultBridgeConfig()
 	config.NATS = NATSConnectionConfig{
-		Servers:        []string{fmt.Sprintf("localhost:%d", opts.Port)},
+		Servers:        []string{natsServerURL},
 		ConnectTimeout: 2000,
 		ReconnectWait:  2000,
 		MaxReconnects:  5,
+	}
+	config.STAN = NATSStreamingConnectionConfig{
+		ClusterID:          clusterName,
+		ClientID:           nuid.Next(),
+		PubAckWait:         5000,
+		DiscoverPrefix:     stan.DefaultDiscoverPrefix,
+		MaxPubAcksInflight: stan.DefaultMaxPubAcksInflight,
+		ConnectWait:        2000,
 	}
 
 	for i, c := range connections {
@@ -80,7 +119,7 @@ func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
 		return nil, err
 	}
 
-	return &tbs, nil
+	return tbs, nil
 }
 
 // Use the test environments extra connection to talk to the queue, bypassing the bridge's connection
@@ -103,7 +142,7 @@ func (tbs *TestEnv) getMessageFromQueue(qName string, waitMillis int32) (*ibmmq.
 	gmo.Options |= ibmmq.MQGMO_WAIT
 	gmo.WaitInterval = waitMillis
 
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 4096)
 	datalen, err := qObject.Get(getmqmd, gmo, buffer)
 
 	if err != nil {
@@ -116,22 +155,13 @@ func (tbs *TestEnv) getMessageFromQueue(qName string, waitMillis int32) (*ibmmq.
 // Use the test environments extra connection to talk to the queue, bypassing the bridge's connection
 func (tbs *TestEnv) putMessageOnQueue(qName string, mqmd *ibmmq.MQMD, msgData []byte) error {
 	mqod := ibmmq.NewMQOD()
-	openOptions := ibmmq.MQOO_OUTPUT
 	mqod.ObjectType = ibmmq.MQOT_Q
 	mqod.ObjectName = qName
-
-	qObject, err := tbs.QMgr.Open(mqod, openOptions)
-	defer qObject.Close(0)
-
-	if err != nil {
-		return err
-	}
-
 	pmo := ibmmq.NewMQPMO()
 	pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
 	buffer := []byte(msgData)
 
-	return qObject.Put(mqmd, pmo, buffer)
+	return tbs.QMgr.Put1(mqod, mqmd, pmo, buffer)
 }
 
 // Close the bridge server and clean up the test environment
@@ -149,12 +179,16 @@ func (tbs *TestEnv) Close() {
 		tbs.MQServer.Close()
 	}
 
+	if tbs.SC != nil {
+		tbs.SC.Close()
+	}
+
 	if tbs.NC != nil {
 		tbs.NC.Close()
 	}
 
-	if tbs.Gnatsd != nil {
-		tbs.Gnatsd.Shutdown()
+	if tbs.Stan != nil {
+		tbs.Stan.Shutdown()
 	}
 }
 

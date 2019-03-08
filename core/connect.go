@@ -7,6 +7,7 @@ import (
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 
 	nats "github.com/nats-io/go-nats"
+	stan "github.com/nats-io/go-nats-streaming"
 )
 
 func connectToQueueManager(mqconfig MQConnectionConfig) (*ibmmq.MQQueueManager, error) {
@@ -38,12 +39,14 @@ func connectToQueueManager(mqconfig MQConnectionConfig) (*ibmmq.MQQueueManager, 
 }
 
 func (bridge *BridgeServer) connectToNATS() error {
-	natsconfig := bridge.config.NATS
+	bridge.Logger.Noticef("connecting to NATS core...")
 
-	nc, err := nats.Connect(strings.Join(natsconfig.Servers, ","),
-		nats.MaxReconnects(natsconfig.MaxReconnects),
-		nats.ReconnectWait(time.Duration(natsconfig.ReconnectWait)*time.Millisecond),
-		nats.Timeout(time.Duration(natsconfig.ConnectTimeout)*time.Millisecond),
+	config := bridge.config.NATS
+
+	nc, err := nats.Connect(strings.Join(config.Servers, ","),
+		nats.MaxReconnects(config.MaxReconnects),
+		nats.ReconnectWait(time.Duration(config.ReconnectWait)*time.Millisecond),
+		nats.Timeout(time.Duration(config.ConnectTimeout)*time.Millisecond),
 		nats.ErrorHandler(func(nc *nats.Conn, sub *nats.Subscription, err error) {
 			bridge.Logger.Errorf("nats error %s", err.Error())
 		}),
@@ -61,18 +64,39 @@ func (bridge *BridgeServer) connectToNATS() error {
 			bridge.Logger.Debugf("nats connection reconnected...")
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
-			bridge.Lock()
 			if bridge.running {
 				bridge.Logger.Debugf("nats connection closed, shutting down bridge...")
+				bridge.Lock()
 				go bridge.Stop()
+				bridge.Unlock()
 			}
-			bridge.Unlock()
 		}))
+
 	if err != nil {
 		return err
 	}
 
 	bridge.nats = nc
+	return nil
+}
+
+func (bridge *BridgeServer) connectToSTAN() error {
+	bridge.Logger.Noticef("connecting to NATS streaming...")
+	config := bridge.config.STAN
+
+	sc, err := stan.Connect(config.ClusterID, config.ClientID,
+		stan.NatsConn(bridge.nats),
+		stan.PubAckWait(time.Duration(config.PubAckWait)*time.Millisecond),
+		stan.MaxPubAcksInflight(config.MaxPubAcksInflight),
+		stan.ConnectWait(time.Duration(config.ConnectWait)*time.Millisecond),
+		func(o *stan.Options) error {
+			o.DiscoverPrefix = config.DiscoverPrefix
+			return nil
+		})
+	if err != nil {
+		return err
+	}
+	bridge.stan = sc
 
 	return nil
 }
