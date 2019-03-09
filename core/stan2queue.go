@@ -115,16 +115,16 @@ func (mq *Stan2QueueConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.queue == nil {
-		return nil
-	}
-
 	mq.bridge.Logger.Noticef("shutting down connection %s", mq.String())
+
+	var err error
 
 	queue := mq.queue
 	mq.queue = nil
 
-	err := queue.Close(0)
+	if queue != nil {
+		err = queue.Close(0)
+	}
 
 	if mq.qMgr != nil {
 		_ = mq.qMgr.Disc()

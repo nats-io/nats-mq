@@ -91,7 +91,7 @@ func (mq *Queue2STANConnector) Start() error {
 	mq.ctlo = ibmmq.NewMQCTLO()
 	err = mq.qMgr.Ctl(ibmmq.MQOP_START, mq.ctlo)
 	if err != nil {
-
+		return err
 	}
 
 	mq.bridge.Logger.Tracef("opened and reading %s", queueName)
@@ -143,20 +143,22 @@ func (mq *Queue2STANConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.queue == nil {
-		return nil
-	}
-
 	mq.bridge.Logger.Noticef("shutting down connection %s", mq.String())
 
-	if err := mq.qMgr.Ctl(ibmmq.MQOP_STOP, mq.ctlo); err != nil {
-		mq.bridge.Logger.Noticef("unable to stop callbacks for %s", mq.String())
+	if mq.ctlo != nil {
+		if err := mq.qMgr.Ctl(ibmmq.MQOP_STOP, mq.ctlo); err != nil {
+			mq.bridge.Logger.Noticef("unable to stop callbacks for %s", mq.String())
+		}
 	}
+
+	var err error
 
 	queue := mq.queue
 	mq.queue = nil
 
-	err := queue.Close(0)
+	if queue != nil {
+		err = queue.Close(0)
+	}
 
 	if mq.qMgr != nil {
 		_ = mq.qMgr.Disc()

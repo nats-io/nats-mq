@@ -17,6 +17,18 @@ const Stan2Queue = "Stan2Queue"
 // NATS2Queue type for an nats to mq queue connector
 const NATS2Queue = "NATS2Queue"
 
+// Topic2NATS type for an mq topic to nats connector
+const Topic2NATS = "Topic2NATS"
+
+// Topic2Stan type for an mq topic to stan connector
+const Topic2Stan = "Topic2Stan"
+
+// Stan2Topic type for an stan to mq topic connector
+const Stan2Topic = "Stan2Topic"
+
+// NATS2Topic type for an nats to mq topic connector
+const NATS2Topic = "NATS2Topic"
+
 // BridgeConfig holds the server configuration
 type BridgeConfig struct {
 	ReconnectInterval int // milliseconds

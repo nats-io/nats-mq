@@ -40,6 +40,12 @@ func TestSimpleSendOnQueueReceiveOnNats(t *testing.T) {
 	err = tbs.putMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
 	require.NoError(t, err)
 
+	timer := time.NewTimer(3 * time.Second)
+	go func() {
+		<-timer.C
+		done <- true
+	}()
+
 	<-done
 	require.Equal(t, msg, received)
 }

@@ -156,7 +156,19 @@ func (tbs *TestEnv) getMessageFromQueue(qName string, waitMillis int32) (*ibmmq.
 func (tbs *TestEnv) putMessageOnQueue(qName string, mqmd *ibmmq.MQMD, msgData []byte) error {
 	mqod := ibmmq.NewMQOD()
 	mqod.ObjectType = ibmmq.MQOT_Q
-	mqod.ObjectName = qName
+	mqod.ObjectName = qName // Note queue uses name, topic uses string
+	pmo := ibmmq.NewMQPMO()
+	pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
+	buffer := []byte(msgData)
+
+	return tbs.QMgr.Put1(mqod, mqmd, pmo, buffer)
+}
+
+// Use the test environments extra connection to talk to the topic, bypassing the bridge's connection
+func (tbs *TestEnv) putMessageOnTopic(topicName string, mqmd *ibmmq.MQMD, msgData []byte) error {
+	mqod := ibmmq.NewMQOD()
+	mqod.ObjectType = ibmmq.MQOT_TOPIC
+	mqod.ObjectString = topicName // Note queue uses name, topic uses string
 	pmo := ibmmq.NewMQPMO()
 	pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
 	buffer := []byte(msgData)
