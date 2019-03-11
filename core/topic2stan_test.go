@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"github.com/nats-io/nats-mq/message"
 	"testing"
@@ -56,8 +55,6 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	channel := "test"
 	topic := "dev/"
 	msg := "hello world"
-	id := bytes.Repeat([]byte{1}, int(ibmmq.MQ_MSG_ID_LENGTH))
-	corr := bytes.Repeat([]byte{1}, int(ibmmq.MQ_CORREL_ID_LENGTH))
 
 	connect := []ConnectionConfig{
 		ConnectionConfig{
@@ -82,9 +79,7 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()
-	mqmd.CorrelId = corr
-	mqmd.MsgId = id
-	err = tbs.putMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
+	err = tbs.putMessageOnTopic(topic, mqmd, []byte(msg))
 	require.NoError(t, err)
 
 	// don't wait forever
@@ -104,8 +99,4 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	require.Equal(t, msg, string(bridgeMessage.Body))
 	require.Equal(t, start.Format("20060102"), bridgeMessage.Header.PutDate)
 	require.True(t, start.Format("15040500") < bridgeMessage.Header.PutTime)
-
-	// TODO looks like topics generate these, perhaps it is a setting
-	//require.ElementsMatch(t, id, bridgeMessage.Header.MsgID)
-	//require.ElementsMatch(t, corr, bridgeMessage.Header.CorrelID)
 }
