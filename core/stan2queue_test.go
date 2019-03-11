@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nats-mq/message"
 	"testing"
 	"time"
 
@@ -56,7 +57,7 @@ func TestSendOnStanReceiveOnQueueMQMD(t *testing.T) {
 	require.NoError(t, err)
 	defer tbs.Close()
 
-	bridgeMessage := NewBridgeMessage([]byte(msg))
+	bridgeMessage := message.NewBridgeMessage([]byte(msg))
 	bridgeMessage.Header.CorrelID = corr
 	bridgeMessage.Header.MsgID = id
 	data, err := bridgeMessage.Encode()

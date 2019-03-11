@@ -26,3 +26,5 @@ require (
 	golang.org/x/sys v0.0.0-20190302025703-b6889370fb10 // indirect
 	google.golang.org/appengine v1.3.0 // indirect
 )
+
+replace github.com/ibm-messaging/mq-golang => ../mq-golang

@@ -1,15 +1,17 @@
 package core
 
 import (
+	"fmt"
 	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nats-mq/message"
 )
 
 // EmptyHandle is used when there is no message handle to pass in
 var EmptyHandle ibmmq.MQMessageHandle = ibmmq.MQMessageHandle{}
 
 // mapMQMDToHeader creates a new bridge header from an MQMD, copying all the contents
-func mapMQMDToHeader(mqmd *ibmmq.MQMD) MQBridgeHeader {
-	return MQBridgeHeader{
+func mapMQMDToHeader(mqmd *ibmmq.MQMD) message.BridgeHeader {
+	return message.BridgeHeader{
 		Version:          mqmd.Version,
 		Report:           mqmd.Report,
 		MsgType:          mqmd.MsgType,
@@ -42,7 +44,7 @@ func mapMQMDToHeader(mqmd *ibmmq.MQMD) MQBridgeHeader {
 }
 
 // mapHeaderToMQMD copies most of the fields, some will be ignored on Put, fields that cannot be set are skiped
-func mapHeaderToMQMD(header *MQBridgeHeader) *ibmmq.MQMD {
+func mapHeaderToMQMD(header *message.BridgeHeader) *ibmmq.MQMD {
 	mqmd := ibmmq.NewMQMD()
 
 	/* some fields shouldn't be copied, they aren't user editable
@@ -79,11 +81,9 @@ func mapHeaderToMQMD(header *MQBridgeHeader) *ibmmq.MQMD {
 	return mqmd
 }
 
-func mapHandleToProperties(handle ibmmq.MQMessageHandle) (map[string]interface{}, error) {
-	props := map[string]interface{}{}
-
+func copyMessageProperties(handle ibmmq.MQMessageHandle, msg *message.BridgeMessage) error {
 	if handle == EmptyHandle {
-		return props, nil
+		return nil
 	}
 
 	impo := ibmmq.NewMQIMPO()
@@ -96,18 +96,21 @@ func mapHandleToProperties(handle ibmmq.MQMessageHandle) (map[string]interface{}
 		if err != nil {
 			mqret := err.(*ibmmq.MQReturn)
 			if mqret.MQRC != ibmmq.MQRC_PROPERTY_NOT_AVAILABLE {
-				return nil, err
+				return err
 			}
 			propsToRead = false
 		} else {
-			props[name] = value
+			err := msg.SetProperty(name, value) // will extract the type
+			if err != nil {
+				return err
+			}
 		}
 	}
 
-	return props, nil
+	return nil
 }
 
-func mapPropertiesToHandle(props map[string]interface{}, qmgr *ibmmq.MQQueueManager) (ibmmq.MQMessageHandle, error) {
+func mapPropertiesToHandle(msg *message.BridgeMessage, qmgr *ibmmq.MQQueueManager) (ibmmq.MQMessageHandle, error) {
 	cmho := ibmmq.NewMQCMHO()
 	handle, err := qmgr.CrtMH(cmho)
 	if err != nil {
@@ -117,7 +120,15 @@ func mapPropertiesToHandle(props map[string]interface{}, qmgr *ibmmq.MQQueueMana
 	smpo := ibmmq.NewMQSMPO()
 	pd := ibmmq.NewMQPD()
 
-	for name, value := range props {
+	props := msg.Properties
+
+	for name := range props {
+		value, ok := msg.GetTypedProperty(name)
+
+		if !ok {
+			return handle, fmt.Errorf("encountered broken message property %s", name)
+		}
+
 		err = handle.SetMP(smpo, name, pd, value)
 		if err != nil {
 			return handle, err
@@ -129,23 +140,19 @@ func mapPropertiesToHandle(props map[string]interface{}, qmgr *ibmmq.MQQueueMana
 
 //mqToNATSMessage convert an incoming MQ message to a set of NATS bytes
 // if the qmgr is nil, the return value is just the message body
-// if the qmgr is not nil the message is encoded as a MQBridgeMessage
+// if the qmgr is not nil the message is encoded as a BridgeMessage
 func mqToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMessageHandle, data []byte, len int, qmgr *ibmmq.MQQueueManager) ([]byte, error) {
-
 	if qmgr == nil {
 		return data[:len], nil
 	}
 
-	props, err := mapHandleToProperties(handle)
+	mqMsg := message.NewBridgeMessage(data[:len])
+	mqMsg.Header = mapMQMDToHeader(mqmd)
+
+	err := copyMessageProperties(handle, mqMsg)
 
 	if err != nil {
 		return nil, err
-	}
-
-	mqMsg := &MQBridgeMessage{
-		Header:     mapMQMDToHeader(mqmd),
-		Properties: props,
-		Body:       data[:len],
 	}
 
 	return mqMsg.Encode()
@@ -153,20 +160,20 @@ func mqToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMessageHandle, data []byte
 
 // natsToMQMessage decode an incoming nats message to an MQ message
 // if the qmgr is nil, data is considered to just be a message body
-// if the qmgr is not nil the message is treated as an encoded MQBridgeMessage
+// if the qmgr is not nil the message is treated as an encoded BridgeMessage
 func natsToMQMessage(data []byte, qmgr *ibmmq.MQQueueManager) (*ibmmq.MQMD, ibmmq.MQMessageHandle, []byte, error) {
 
 	if qmgr == nil {
 		return ibmmq.NewMQMD(), EmptyHandle, data, nil
 	}
 
-	mqMsg, err := DecodeBridgeMessage(data)
+	mqMsg, err := message.DecodeBridgeMessage(data)
 
 	if err != nil {
 		return nil, EmptyHandle, nil, err
 	}
 
-	handle, err := mapPropertiesToHandle(mqMsg.Properties, qmgr)
+	handle, err := mapPropertiesToHandle(mqMsg, qmgr)
 
 	if err != nil {
 		return nil, EmptyHandle, nil, err

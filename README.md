@@ -15,7 +15,7 @@ export CGO_CFLAGS="-I$MQ_INSTALLATION_PATH/inc"
 export CGO_LDFLAGS="-L$MQ_INSTALLATION_PATH/lib64 -Wl,-rpath,$MQ_INSTALLATION_PATH/lib64"
  ```
 
- *Note there is a typo on the web page, missing `-rpath` and has `rpath` instead.
+ *Note there is a typo on the ibm mq web page, missing `-rpath` and has `rpath` instead.
 
  Build the MQ library:
 

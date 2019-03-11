@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nats-mq/message"
 	"testing"
 	"time"
 
@@ -97,7 +98,7 @@ func TestSendOnTopicReceiveOnNatsMQMD(t *testing.T) {
 
 	require.True(t, len(received) > 0)
 
-	bridgeMessage, err := DecodeBridgeMessage(received)
+	bridgeMessage, err := message.DecodeBridgeMessage(received)
 	require.NoError(t, err)
 
 	require.Equal(t, msg, string(bridgeMessage.Body))

@@ -48,7 +48,7 @@ func TestMQMDTranslation(t *testing.T) {
 	expected.CodedCharSetId = 7
 	expected.Format = "8"
 	expected.Priority = 9
-	expected.Persistence = 10
+	expected.Persistence = ibmmq.MQPER_PERSISTENCE_AS_Q_DEF
 	expected.MsgId = copyByteArray(msgBytes)
 	expected.CorrelId = copyByteArray(msgBytes)
 	expected.BackoutCount = 11
@@ -76,9 +76,25 @@ func TestMQMDTranslation(t *testing.T) {
 	pd := ibmmq.NewMQPD()
 	err = handleIn.SetMP(smpo, "one", pd, "alpha")
 	require.NoError(t, err)
-	err = handleIn.SetMP(smpo, "two", pd, int32(356))
+	err = handleIn.SetMP(smpo, "two", pd, int(356))
 	require.NoError(t, err)
-	err = handleIn.SetMP(smpo, "three", pd, float32(3.0))
+	err = handleIn.SetMP(smpo, "two8", pd, int8(17))
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "two16", pd, int16(129))
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "two32", pd, int32(356))
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "two64", pd, int64(11123123123))
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "three32", pd, float32(3.0))
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "three64", pd, float64(322222.0))
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "four", pd, []byte("alpha"))
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "five", pd, true)
+	require.NoError(t, err)
+	err = handleIn.SetMP(smpo, "six", pd, nil)
 	require.NoError(t, err)
 
 	encoded, err := mqToNATSMessage(expected, handleIn, msgBytes, len(msgBytes), qMgr)
@@ -100,9 +116,41 @@ func TestMQMDTranslation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(356), value.(int64))
 
-	_, value, err = handleOut.InqMP(impo, pd, "three")
+	_, value, err = handleOut.InqMP(impo, pd, "two8")
 	require.NoError(t, err)
-	require.Equal(t, 3.0, value.(float64))
+	require.Equal(t, int8(17), value.(int8))
+
+	_, value, err = handleOut.InqMP(impo, pd, "two16")
+	require.NoError(t, err)
+	require.Equal(t, int16(129), value.(int16))
+
+	_, value, err = handleOut.InqMP(impo, pd, "two32")
+	require.NoError(t, err)
+	require.Equal(t, int32(356), value.(int32))
+
+	_, value, err = handleOut.InqMP(impo, pd, "two64")
+	require.NoError(t, err)
+	require.Equal(t, int64(11123123123), value.(int64))
+
+	_, value, err = handleOut.InqMP(impo, pd, "three32")
+	require.NoError(t, err)
+	require.Equal(t, float32(3.0), value.(float32))
+
+	_, value, err = handleOut.InqMP(impo, pd, "three64")
+	require.NoError(t, err)
+	require.Equal(t, float64(322222.0), value.(float64))
+
+	_, value, err = handleOut.InqMP(impo, pd, "four")
+	require.NoError(t, err)
+	require.ElementsMatch(t, []byte("alpha"), value.([]byte))
+
+	_, value, err = handleOut.InqMP(impo, pd, "five")
+	require.NoError(t, err)
+	require.Equal(t, true, value.(bool))
+
+	_, value, err = handleOut.InqMP(impo, pd, "six")
+	require.NoError(t, err)
+	require.Nil(t, value)
 
 	require.Equal(t, expected.OriginalLength, mqmd.OriginalLength)
 
@@ -111,10 +159,10 @@ func TestMQMDTranslation(t *testing.T) {
 	require.Equal(t, expected.MsgType, mqmd.MsgType)
 	require.Equal(t, expected.Expiry, mqmd.Expiry)
 	require.Equal(t, expected.BackoutCount, mqmd.BackoutCount)
-	require.Equal(t, expected.Persistence, mqmd.Persistence)
 	require.Equal(t, expected.PutDate, mqmd.PutDate)
 	require.Equal(t, expected.PutTime, mqmd.PutTime)
 	*/
+	require.Equal(t, expected.Persistence, mqmd.Persistence) // only works with the default
 	require.Equal(t, expected.Report, mqmd.Report)
 	require.Equal(t, expected.Feedback, mqmd.Feedback)
 	require.Equal(t, expected.Encoding, mqmd.Encoding)
