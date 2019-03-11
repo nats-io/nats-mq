@@ -384,7 +384,7 @@ func (msg *BridgeMessage) DeleteProperty(name string) interface{} {
 	delete(msg.Properties, name)
 
 	if ok {
-		return cur
+		return cur.Value
 	}
 
 	return nil
