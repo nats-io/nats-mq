@@ -187,6 +187,8 @@ func (bridge *BridgeServer) createConnector(config ConnectionConfig) (Connector,
 		return NewStan2QueueConnector(bridge, config), nil
 	case Topic2NATS:
 		return NewTopic2NATSConnector(bridge, config), nil
+	case Topic2Stan:
+		return NewTopic2StanConnector(bridge, config), nil
 	default:
 		return nil, fmt.Errorf("unknown connector type %q in configuration", config.Type)
 	}
