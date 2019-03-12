@@ -101,6 +101,9 @@ func (mq *Queue2STANConnector) Start() error {
 }
 
 func (mq *Queue2STANConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
+	mq.Lock()
+	defer mq.Unlock()
+
 	if mqErr != nil && mqErr.MQCC != ibmmq.MQCC_OK {
 		if mqErr.MQRC == ibmmq.MQRC_NO_MSG_AVAILABLE {
 			mq.bridge.Logger.Tracef("message timeout on %s", mq.String())

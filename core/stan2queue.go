@@ -90,6 +90,9 @@ func (mq *Stan2QueueConnector) Start() error {
 }
 
 func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
+	mq.Lock()
+	defer mq.Unlock()
+
 	qmgrFlag := mq.qMgr
 
 	if mq.config.ExcludeHeaders {

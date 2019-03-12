@@ -90,6 +90,9 @@ func (mq *NATS2QueueConnector) Start() error {
 }
 
 func (mq *NATS2QueueConnector) messageHandler(m *nats.Msg) {
+	mq.Lock()
+	defer mq.Unlock()
+
 	qmgrFlag := mq.qMgr
 
 	if mq.config.ExcludeHeaders {

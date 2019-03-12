@@ -91,6 +91,9 @@ func (mq *NATS2TopicConnector) Start() error {
 }
 
 func (mq *NATS2TopicConnector) messageHandler(m *nats.Msg) {
+	mq.Lock()
+	defer mq.Unlock()
+
 	qmgrFlag := mq.qMgr
 
 	if mq.config.ExcludeHeaders {
