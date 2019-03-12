@@ -125,13 +125,17 @@ func (mq *Topic2NATSConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQ
 		qmgrFlag = nil
 	}
 
-	natsMsg, err := mqToNATSMessage(md, gmo.MsgHandle, buffer, bufferLen, qmgrFlag)
+	natsMsg, replyTo, err := mq.bridge.mqToNATSMessage(md, gmo.MsgHandle, buffer, bufferLen, qmgrFlag)
 
 	if err != nil {
 		mq.bridge.Logger.Noticef("failed to convert message for %s, %s", mq.String(), err.Error())
 	}
 
-	err = mq.bridge.nats.Publish(mq.config.Subject, natsMsg)
+	if replyTo != "" {
+		err = mq.bridge.nats.PublishRequest(mq.config.Subject, replyTo, natsMsg)
+	} else {
+		err = mq.bridge.nats.Publish(mq.config.Subject, natsMsg)
+	}
 
 	if err != nil {
 		mq.bridge.Logger.Noticef("NATS publish failure, %s", mq.String(), err.Error())

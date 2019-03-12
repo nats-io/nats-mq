@@ -28,12 +28,10 @@ func TestSimpleSendOnTopicReceiveOnStan(t *testing.T) {
 	require.NoError(t, err)
 	defer tbs.Close()
 
-	received := ""
-	done := make(chan bool)
+	done := make(chan string)
 
 	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
-		received = string(msg.Data)
-		done <- true
+		done <- string(msg.Data)
 	})
 	defer sub.Unsubscribe()
 
@@ -43,10 +41,10 @@ func TestSimpleSendOnTopicReceiveOnStan(t *testing.T) {
 	timer := time.NewTimer(3 * time.Second)
 	go func() {
 		<-timer.C
-		done <- true
+		done <- ""
 	}()
 
-	<-done
+	received := <-done
 	require.Equal(t, msg, received)
 }
 
@@ -69,12 +67,10 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	require.NoError(t, err)
 	defer tbs.Close()
 
-	var received []byte
-	done := make(chan bool)
+	done := make(chan []byte)
 
 	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
-		received = msg.Data
-		done <- true
+		done <- msg.Data
 	})
 	defer sub.Unsubscribe()
 
@@ -86,10 +82,10 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	timer := time.NewTimer(3 * time.Second)
 	go func() {
 		<-timer.C
-		done <- true
+		done <- []byte{}
 	}()
 
-	<-done
+	received := <-done
 
 	require.True(t, len(received) > 0)
 

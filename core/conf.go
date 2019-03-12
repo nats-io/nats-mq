@@ -33,8 +33,8 @@ const NATS2Topic = "NATS2Topic"
 type BridgeConfig struct {
 	ReconnectInterval int // milliseconds
 
-	NATS NATSConnectionConfig
-	STAN NATSStreamingConnectionConfig
+	NATS NATSConfig
+	STAN NATSStreamingConfig
 
 	Logging logging.Config
 
@@ -53,7 +53,7 @@ func DefaultBridgeConfig() BridgeConfig {
 			Debug:  true,
 			Trace:  true,
 		},
-		STAN: NATSStreamingConnectionConfig{
+		STAN: NATSStreamingConfig{
 			PubAckWait:         5000,
 			DiscoverPrefix:     stan.DefaultDiscoverPrefix,
 			MaxPubAcksInflight: stan.DefaultMaxPubAcksInflight,
@@ -69,8 +69,8 @@ type TLSConf struct {
 	Root string
 }
 
-// MQConnectionConfig configuration for an MQ Connection
-type MQConnectionConfig struct {
+// MQConfig configuration for an MQ Connection
+type MQConfig struct {
 	ConnectionName string
 	ChannelName    string
 	QueueManager   string
@@ -78,8 +78,8 @@ type MQConnectionConfig struct {
 	Password       string
 }
 
-// NATSConnectionConfig configuration for a NATS connection
-type NATSConnectionConfig struct {
+// NATSConfig configuration for a NATS connection
+type NATSConfig struct {
 	Servers []string
 
 	ConnectTimeout int //milliseconds
@@ -91,8 +91,8 @@ type NATSConnectionConfig struct {
 	Password string
 }
 
-// NATSStreamingConnectionConfig configuration for a STAN connection
-type NATSStreamingConnectionConfig struct {
+// NATSStreamingConfig configuration for a STAN connection
+type NATSStreamingConfig struct {
 	ClusterID string
 	ClientID  string
 
@@ -109,8 +109,8 @@ type ConnectionConfig struct {
 	Channel string // used for stan connections
 	Subject string // Used for nats connections
 
-	MQ    MQConnectionConfig // connection information, nats connections are shared
-	Topic string             // Used for the mq side of things
+	MQ    MQConfig // connection information, nats connections are shared
+	Topic string   // Used for the mq side of things
 	Queue string
 
 	ExcludeHeaders bool //exclude headers, and just send the body to/from nats messages

@@ -29,12 +29,10 @@ func TestSimpleSendOnTopicReceiveOnNats(t *testing.T) {
 	require.NoError(t, err)
 	defer tbs.Close()
 
-	received := ""
-	done := make(chan bool)
+	done := make(chan string)
 
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
-		received = string(msg.Data)
-		done <- true
+		done <- string(msg.Data)
 	})
 	defer sub.Unsubscribe()
 
@@ -44,10 +42,10 @@ func TestSimpleSendOnTopicReceiveOnNats(t *testing.T) {
 	timer := time.NewTimer(3 * time.Second)
 	go func() {
 		<-timer.C
-		done <- true
+		done <- ""
 	}()
 
-	<-done
+	received := <-done
 	require.Equal(t, msg, received)
 }
 
@@ -72,12 +70,10 @@ func TestSendOnTopicReceiveOnNatsMQMD(t *testing.T) {
 	require.NoError(t, err)
 	defer tbs.Close()
 
-	var received []byte
-	done := make(chan bool)
+	done := make(chan []byte)
 
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
-		received = msg.Data
-		done <- true
+		done <- msg.Data
 	})
 	defer sub.Unsubscribe()
 
@@ -91,10 +87,10 @@ func TestSendOnTopicReceiveOnNatsMQMD(t *testing.T) {
 	timer := time.NewTimer(3 * time.Second)
 	go func() {
 		<-timer.C
-		done <- true
+		done <- []byte{}
 	}()
 
-	<-done
+	received := <-done
 
 	require.True(t, len(received) > 0)
 

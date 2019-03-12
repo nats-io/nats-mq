@@ -96,7 +96,7 @@ func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
 		qmgrFlag = nil
 	}
 
-	mqmd, handle, buffer, err := natsToMQMessage(m.Data, qmgrFlag)
+	mqmd, handle, buffer, err := mq.bridge.natsToMQMessage(m.Data, "", qmgrFlag)
 
 	pmo := ibmmq.NewMQPMO()
 	pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT

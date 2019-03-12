@@ -9,6 +9,23 @@ import (
 // EmptyHandle is used when there is no message handle to pass in
 var EmptyHandle ibmmq.MQMessageHandle = ibmmq.MQMessageHandle{}
 
+// Copies the array, empty or not
+func copyByteArray(bytes []byte) []byte {
+	newArray := make([]byte, len(bytes))
+	copy(newArray, bytes)
+	return newArray
+}
+
+// Copies the array if it isn't empty, otherwise returns the default
+func copyByteArrayIfNotEmpty(bytes []byte, def []byte) []byte {
+	if bytes == nil || len(bytes) == 0 {
+		return def
+	}
+	newArray := make([]byte, len(bytes))
+	copy(newArray, bytes)
+	return newArray
+}
+
 // mapMQMDToHeader creates a new bridge header from an MQMD, copying all the contents
 func mapMQMDToHeader(mqmd *ibmmq.MQMD) message.BridgeHeader {
 	return message.BridgeHeader{
@@ -81,7 +98,7 @@ func mapHeaderToMQMD(header *message.BridgeHeader) *ibmmq.MQMD {
 	return mqmd
 }
 
-func copyMessageProperties(handle ibmmq.MQMessageHandle, msg *message.BridgeMessage) error {
+func (bridge *BridgeServer) copyMessageProperties(handle ibmmq.MQMessageHandle, msg *message.BridgeMessage) error {
 	if handle == EmptyHandle {
 		return nil
 	}
@@ -110,7 +127,7 @@ func copyMessageProperties(handle ibmmq.MQMessageHandle, msg *message.BridgeMess
 	return nil
 }
 
-func mapPropertiesToHandle(msg *message.BridgeMessage, qmgr *ibmmq.MQQueueManager) (ibmmq.MQMessageHandle, error) {
+func (bridge *BridgeServer) mapPropertiesToHandle(msg *message.BridgeMessage, qmgr *ibmmq.MQQueueManager) (ibmmq.MQMessageHandle, error) {
 	cmho := ibmmq.NewMQCMHO()
 	handle, err := qmgr.CrtMH(cmho)
 	if err != nil {
@@ -138,33 +155,92 @@ func mapPropertiesToHandle(msg *message.BridgeMessage, qmgr *ibmmq.MQQueueManage
 	return handle, nil
 }
 
-//mqToNATSMessage convert an incoming MQ message to a set of NATS bytes
+//mqToNATSMessage convert an incoming MQ message to a set of NATS bytes and a reply subject
 // if the qmgr is nil, the return value is just the message body
 // if the qmgr is not nil the message is encoded as a BridgeMessage
-func mqToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMessageHandle, data []byte, len int, qmgr *ibmmq.MQQueueManager) ([]byte, error) {
-	if qmgr == nil {
-		return data[:len], nil
+// The data array is always just bytes from MQ, and is not an encoded BridgeMessage
+func (bridge *BridgeServer) mqToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMessageHandle, data []byte, length int, qmgr *ibmmq.MQQueueManager) ([]byte, string, error) {
+	replySubject := ""
+	replyChannel := ""
+	replyQ := ""
+	replyQMgr := ""
+
+	if mqmd != nil {
+		replyQ = mqmd.ReplyToQ
+		replyQMgr = mqmd.ReplyToQMgr
 	}
 
-	mqMsg := message.NewBridgeMessage(data[:len])
-	mqMsg.Header = mapMQMDToHeader(mqmd)
+	if replyQ != "" && replyQMgr != "" {
+		connectTo, ok := bridge.replyToInfo["Q:"+replyQ+"@"+replyQMgr]
 
-	err := copyMessageProperties(handle, mqMsg)
+		if ok {
+			if connectTo.Subject != "" {
+				replySubject = connectTo.Subject
+			} else {
+				replyChannel = connectTo.Channel
+			}
+		}
+	}
+
+	if qmgr == nil {
+		return data[:length], replySubject, nil
+	}
+
+	mqMsg := message.NewBridgeMessage(data[:length])
+
+	mqMsg.Header = mapMQMDToHeader(mqmd)
+	mqMsg.Header.ReplyToChannel = replyChannel
+
+	err := bridge.copyMessageProperties(handle, mqMsg)
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return mqMsg.Encode()
+	encoded, err := mqMsg.Encode()
+
+	if err != nil {
+		return nil, "", err
+	}
+
+	return encoded, replySubject, nil
 }
 
 // natsToMQMessage decode an incoming nats message to an MQ message
 // if the qmgr is nil, data is considered to just be a message body
 // if the qmgr is not nil the message is treated as an encoded BridgeMessage
-func natsToMQMessage(data []byte, qmgr *ibmmq.MQQueueManager) (*ibmmq.MQMD, ibmmq.MQMessageHandle, []byte, error) {
+// The returned byte array just bytes from MQ, and is not an encoded BridgeMessage
+func (bridge *BridgeServer) natsToMQMessage(data []byte, replyTo string, qmgr *ibmmq.MQQueueManager) (*ibmmq.MQMD, ibmmq.MQMessageHandle, []byte, error) {
+	replyQ := ""
+	replyQMgr := ""
+
+	if replyTo != "" {
+		connectTo, ok := bridge.replyToInfo["S:"+replyTo]
+
+		if !ok {
+			connectTo, ok = bridge.replyToInfo["C:"+replyTo]
+		}
+
+		if ok && connectTo.Queue != "" {
+			replyQ = connectTo.Queue
+			replyQMgr = connectTo.MQ.QueueManager
+		}
+	}
 
 	if qmgr == nil {
-		return ibmmq.NewMQMD(), EmptyHandle, data, nil
+		mqmd := ibmmq.NewMQMD()
+
+		if replyQ != "" {
+			mqmd.ReplyToQ = replyQ
+			mqmd.ReplyToQMgr = replyQMgr
+		}
+
+		return mqmd, EmptyHandle, data, nil
+	}
+
+	// Can't have nil data for encoded message, could have for empty plain message
+	if data == nil {
+		return nil, EmptyHandle, nil, fmt.Errorf("tried to convert empty message to BridgeMessage")
 	}
 
 	mqMsg, err := message.DecodeBridgeMessage(data)
@@ -173,28 +249,26 @@ func natsToMQMessage(data []byte, qmgr *ibmmq.MQQueueManager) (*ibmmq.MQMD, ibmm
 		return nil, EmptyHandle, nil, err
 	}
 
-	handle, err := mapPropertiesToHandle(mqMsg, qmgr)
+	if mqMsg.Header.ReplyToChannel != "" {
+		connectTo, ok := bridge.replyToInfo["C:"+mqMsg.Header.ReplyToChannel]
+		if ok && connectTo.Queue != "" {
+			replyQ = connectTo.Queue
+			replyQMgr = connectTo.MQ.QueueManager
+		}
+	}
+
+	handle, err := bridge.mapPropertiesToHandle(mqMsg, qmgr)
 
 	if err != nil {
 		return nil, EmptyHandle, nil, err
 	}
 
-	return mapHeaderToMQMD(&mqMsg.Header), handle, mqMsg.Body, nil
-}
+	mqmd := mapHeaderToMQMD(&mqMsg.Header)
 
-// Copies the array, empty or not
-func copyByteArray(bytes []byte) []byte {
-	newArray := make([]byte, len(bytes))
-	copy(newArray, bytes)
-	return newArray
-}
-
-// Copies the array if it isn't empty, otherwise returns the default
-func copyByteArrayIfNotEmpty(bytes []byte, def []byte) []byte {
-	if bytes == nil || len(bytes) == 0 {
-		return def
+	if replyQ != "" {
+		mqmd.ReplyToQ = replyQ
+		mqmd.ReplyToQMgr = replyQMgr
 	}
-	newArray := make([]byte, len(bytes))
-	copy(newArray, bytes)
-	return newArray
+
+	return mqmd, handle, mqMsg.Body, nil
 }

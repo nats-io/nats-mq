@@ -26,7 +26,8 @@ type BridgeServer struct {
 	nats *nats.Conn
 	stan stan.Conn
 
-	connectors []Connector
+	connectors  []Connector
+	replyToInfo map[string]ConnectionConfig
 }
 
 // Connector is used to type the various connectors in the bridge, primarily for shutdown
@@ -109,6 +110,8 @@ func (bridge *BridgeServer) Start() error {
 	bridge.running = true
 	bridge.startTime = time.Now()
 	bridge.Logger = logging.NewNATSLogger(bridge.config.Logging)
+	bridge.replyToInfo = map[string]ConnectionConfig{}
+	bridge.connectors = []Connector{}
 
 	bridge.Logger.Noticef("starting MQ-NATS bridge, version %s", version)
 	bridge.Logger.Noticef("server time is %s", bridge.startTime.Format(time.UnixDate))
@@ -178,20 +181,28 @@ func (bridge *BridgeServer) initializeConnectors() error {
 func (bridge *BridgeServer) createConnector(config ConnectionConfig) (Connector, error) {
 	switch config.Type {
 	case Queue2NATS:
+		bridge.replyToInfo["S:"+config.Subject] = config
 		return NewQueue2NATSConnector(bridge, config), nil
-	case NATS2Queue:
-		return NewNATS2QueueConnector(bridge, config), nil
 	case Queue2Stan:
+		bridge.replyToInfo["C:"+config.Channel] = config
 		return NewQueue2STANConnector(bridge, config), nil
+	case NATS2Queue:
+		bridge.replyToInfo["Q:"+config.Queue+"@"+config.MQ.QueueManager] = config
+		return NewNATS2QueueConnector(bridge, config), nil
 	case Stan2Queue:
+		bridge.replyToInfo["Q:"+config.Queue+"@"+config.MQ.QueueManager] = config
 		return NewStan2QueueConnector(bridge, config), nil
 	case Topic2NATS:
+		bridge.replyToInfo["S:"+config.Subject] = config
 		return NewTopic2NATSConnector(bridge, config), nil
 	case Topic2Stan:
+		bridge.replyToInfo["C:"+config.Channel] = config
 		return NewTopic2StanConnector(bridge, config), nil
 	case NATS2Topic:
+		bridge.replyToInfo["T:"+config.Topic+"@"+config.MQ.QueueManager] = config
 		return NewNATS2TopicConnector(bridge, config), nil
 	case Stan2Topic:
+		bridge.replyToInfo["T:"+config.Topic+"@"+config.MQ.QueueManager] = config
 		return NewStan2TopicConnector(bridge, config), nil
 	default:
 		return nil, fmt.Errorf("unknown connector type %q in configuration", config.Type)

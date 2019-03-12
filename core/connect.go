@@ -10,7 +10,7 @@ import (
 	stan "github.com/nats-io/go-nats-streaming"
 )
 
-func connectToQueueManager(mqconfig MQConnectionConfig) (*ibmmq.MQQueueManager, error) {
+func connectToQueueManager(mqconfig MQConfig) (*ibmmq.MQQueueManager, error) {
 	connectionOptions := ibmmq.NewMQCNO()
 	channelDefinition := ibmmq.NewMQCD()
 

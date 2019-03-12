@@ -125,7 +125,7 @@ func (mq *Topic2StanConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQ
 		qmgrFlag = nil
 	}
 
-	natsMsg, err := mqToNATSMessage(md, gmo.MsgHandle, buffer, bufferLen, qmgrFlag)
+	natsMsg, _, err := mq.bridge.mqToNATSMessage(md, gmo.MsgHandle, buffer, bufferLen, qmgrFlag)
 
 	if err != nil {
 		mq.bridge.Logger.Noticef("failed to convert message for %s, %s", mq.String(), err.Error())

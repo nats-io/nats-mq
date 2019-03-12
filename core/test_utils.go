@@ -80,13 +80,13 @@ func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
 	tbs.SC = sc
 
 	config := DefaultBridgeConfig()
-	config.NATS = NATSConnectionConfig{
+	config.NATS = NATSConfig{
 		Servers:        []string{natsServerURL},
 		ConnectTimeout: 2000,
 		ReconnectWait:  2000,
 		MaxReconnects:  5,
 	}
-	config.STAN = NATSStreamingConnectionConfig{
+	config.STAN = NATSStreamingConfig{
 		ClusterID:          clusterName,
 		ClientID:           nuid.Next(),
 		PubAckWait:         5000,
@@ -96,7 +96,7 @@ func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
 	}
 
 	for i, c := range connections {
-		c.MQ = MQConnectionConfig{
+		c.MQ = MQConfig{
 			ConnectionName: mqServer.AppHostPort,
 			ChannelName:    "DEV.APP.SVRCONN",
 			QueueManager:   "QM1",
@@ -120,6 +120,10 @@ func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
 	}
 
 	return tbs, nil
+}
+
+func (tbs *TestEnv) getQueueManagerName() string {
+	return "QM1"
 }
 
 // Use the test environments extra connection to talk to the queue, bypassing the bridge's connection
@@ -256,7 +260,7 @@ func StartMQTestServer(waitForStart time.Duration) (*MQTestServer, *ibmmq.MQQueu
 	}
 	mq.WebHostPort = fmt.Sprintf("localhost:%s", port)
 
-	config := MQConnectionConfig{
+	config := MQConfig{
 		ConnectionName: mq.AppHostPort,
 		ChannelName:    "DEV.APP.SVRCONN",
 		QueueManager:   "QM1",

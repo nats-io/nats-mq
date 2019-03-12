@@ -9,14 +9,15 @@ import (
 )
 
 func TestExcludeHeadersIgnoresMQMD(t *testing.T) {
+	bridge := &BridgeServer{}
 	msg := "hello world"
 	msgBytes := []byte(msg)
 
-	result, err := mqToNATSMessage(nil, EmptyHandle, msgBytes, len(msgBytes), nil)
+	result, _, err := bridge.mqToNATSMessage(nil, EmptyHandle, msgBytes, len(msgBytes), nil)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(result))
 
-	mqmd, _, result, err := natsToMQMessage(msgBytes, nil)
+	mqmd, _, result, err := bridge.natsToMQMessage(msgBytes, "", nil)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(result))
 
@@ -29,6 +30,7 @@ func TestExcludeHeadersIgnoresMQMD(t *testing.T) {
 }
 
 func TestMQMDTranslation(t *testing.T) {
+	bridge := &BridgeServer{}
 	mqServer, qMgr, err := StartMQTestServer(5 * time.Second)
 	require.NoError(t, err)
 	defer qMgr.Disc()
@@ -97,11 +99,11 @@ func TestMQMDTranslation(t *testing.T) {
 	err = handleIn.SetMP(smpo, "six", pd, nil)
 	require.NoError(t, err)
 
-	encoded, err := mqToNATSMessage(expected, handleIn, msgBytes, len(msgBytes), qMgr)
+	encoded, _, err := bridge.mqToNATSMessage(expected, handleIn, msgBytes, len(msgBytes), qMgr)
 	require.NoError(t, err)
 	require.NotEqual(t, msg, string(encoded))
 
-	mqmd, handleOut, result, err := natsToMQMessage(encoded, qMgr)
+	mqmd, handleOut, result, err := bridge.natsToMQMessage(encoded, "", qMgr)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(result))
 
