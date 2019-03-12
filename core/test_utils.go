@@ -269,7 +269,7 @@ func StartMQTestServer(waitForStart time.Duration) (*MQTestServer, *ibmmq.MQQueu
 	var connection *ibmmq.MQQueueManager
 
 	for waitForStart > 0 && time.Now().Sub(start) < waitForStart {
-		connection, err = connectToQueueManager(config)
+		connection, err = ConnectToQueueManager(config)
 		if err == nil {
 			break
 		}

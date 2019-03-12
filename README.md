@@ -2,6 +2,12 @@
 
 Simple bridge between NATS streaming and MQ Series
 
+## Notes/Caveats
+
+* Request/reply with queues is supported but reply-to topics are not.
+* Request/reply with NATS streaming requires that ExcludeHeaders be configured to False, the reply-to channel is in the header. Clients need
+to use the BridgeMessage class to wrap messages on the streaming side.
+
 ## Developing
 
 ### The MQSeries library

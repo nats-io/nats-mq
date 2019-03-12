@@ -1,6 +1,7 @@
 package core
 
 import (
+	"log"
 	"strings"
 	"time"
 
@@ -10,7 +11,8 @@ import (
 	stan "github.com/nats-io/go-nats-streaming"
 )
 
-func connectToQueueManager(mqconfig MQConfig) (*ibmmq.MQQueueManager, error) {
+// ConnectToQueueManager utility to connect to a queue manager from a configuration
+func ConnectToQueueManager(mqconfig MQConfig) (*ibmmq.MQQueueManager, error) {
 	connectionOptions := ibmmq.NewMQCNO()
 	channelDefinition := ibmmq.NewMQCD()
 
@@ -36,6 +38,51 @@ func connectToQueueManager(mqconfig MQConfig) (*ibmmq.MQQueueManager, error) {
 	}
 
 	return &qMgr, nil
+}
+
+// ConnectToSTANWithConfig utility to connect to a streaming server from a config
+// unused by the bridge
+func ConnectToSTANWithConfig(config NATSStreamingConfig, nc *nats.Conn) (stan.Conn, error) {
+	sc, err := stan.Connect(config.ClusterID, config.ClientID,
+		stan.NatsConn(nc),
+		stan.PubAckWait(time.Duration(config.PubAckWait)*time.Millisecond),
+		stan.MaxPubAcksInflight(config.MaxPubAcksInflight),
+		stan.ConnectWait(time.Duration(config.ConnectWait)*time.Millisecond),
+		func(o *stan.Options) error {
+			o.DiscoverPrefix = config.DiscoverPrefix
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return sc, nil
+}
+
+// ConnectToNATSWithConfig utility to connect to nats from a config
+// unused by the bridge, which uses its own logger, this method uses "log"
+func ConnectToNATSWithConfig(config NATSConfig) (*nats.Conn, error) {
+	nc, err := nats.Connect(strings.Join(config.Servers, ","),
+		nats.MaxReconnects(config.MaxReconnects),
+		nats.ReconnectWait(time.Duration(config.ReconnectWait)*time.Millisecond),
+		nats.Timeout(time.Duration(config.ConnectTimeout)*time.Millisecond),
+		nats.ErrorHandler(func(nc *nats.Conn, sub *nats.Subscription, err error) {
+			log.Printf("nats error %s", err.Error())
+		}),
+		nats.DiscoveredServersHandler(func(nc *nats.Conn) {
+			log.Printf("discovered servers: %v\n", nc.DiscoveredServers())
+			log.Printf("known servers: %v\n", nc.Servers())
+		}),
+		nats.DisconnectHandler(func(nc *nats.Conn) {
+			log.Printf("nats connection disconnected...")
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
+			log.Printf("nats connection reconnected...")
+		}),
+		nats.ClosedHandler(func(nc *nats.Conn) {
+			log.Printf("nats connection closed...")
+		}),
+	)
+	return nc, err
 }
 
 func (bridge *BridgeServer) connectToNATS() error {

@@ -51,7 +51,7 @@ func (mq *Topic2NATSConnector) Start() error {
 
 	mq.bridge.Logger.Tracef("starting connection %s", mq.String())
 
-	qMgr, err := connectToQueueManager(mqconfig)
+	qMgr, err := ConnectToQueueManager(mqconfig)
 	if err != nil {
 		return err
 	}

@@ -76,6 +76,7 @@ type BridgeHeader struct {
 	Offset           int32
 	MsgFlags         int32
 	OriginalLength   int32
+	ReplyToChannel   string
 }
 
 // Property wraps a typed property to allow proper round/trip support
@@ -106,6 +107,10 @@ func NewBridgeMessage(body []byte) *BridgeMessage {
 // DecodeBridgeMessage decodes the bytes and returns the decoded version
 // use NewBridgeMessage to create a message with an empty header
 func DecodeBridgeMessage(data []byte) (*BridgeMessage, error) {
+	if data == nil {
+		return nil, fmt.Errorf("attempt to decode bridge message of zero length")
+	}
+
 	mqMsg := &BridgeMessage{}
 	dec := codec.NewDecoderBytes(data, &mh)
 	err := dec.Decode(mqMsg)
