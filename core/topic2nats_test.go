@@ -36,7 +36,7 @@ func TestSimpleSendOnTopicReceiveOnNats(t *testing.T) {
 	})
 	defer sub.Unsubscribe()
 
-	err = tbs.putMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
+	err = tbs.PutMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
 	require.NoError(t, err)
 
 	timer := time.NewTimer(3 * time.Second)
@@ -80,7 +80,7 @@ func TestSendOnTopicReceiveOnNatsMQMD(t *testing.T) {
 	mqmd := ibmmq.NewMQMD()
 	mqmd.CorrelId = corr
 	mqmd.MsgId = id
-	err = tbs.putMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
+	err = tbs.PutMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
 	require.NoError(t, err)
 
 	// don't wait forever

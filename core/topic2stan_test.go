@@ -35,7 +35,7 @@ func TestSimpleSendOnTopicReceiveOnStan(t *testing.T) {
 	})
 	defer sub.Unsubscribe()
 
-	err = tbs.putMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
+	err = tbs.PutMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
 	require.NoError(t, err)
 
 	timer := time.NewTimer(3 * time.Second)
@@ -75,7 +75,7 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()
-	err = tbs.putMessageOnTopic(topic, mqmd, []byte(msg))
+	err = tbs.PutMessageOnTopic(topic, mqmd, []byte(msg))
 	require.NoError(t, err)
 
 	// don't wait forever

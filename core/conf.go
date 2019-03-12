@@ -50,8 +50,8 @@ func DefaultBridgeConfig() BridgeConfig {
 		Logging: logging.Config{
 			Colors: true,
 			Time:   true,
-			Debug:  true,
-			Trace:  true,
+			Debug:  false,
+			Trace:  false,
 		},
 		STAN: NATSStreamingConfig{
 			PubAckWait:         5000,

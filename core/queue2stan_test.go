@@ -36,7 +36,7 @@ func TestSimpleSendOnQueueReceiveOnStan(t *testing.T) {
 	})
 	defer sub.Unsubscribe()
 
-	err = tbs.putMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
+	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
 	require.NoError(t, err)
 
 	timer := time.NewTimer(3 * time.Second)
@@ -80,7 +80,7 @@ func TestSendOnQueueReceiveOnStanMQMD(t *testing.T) {
 	mqmd := ibmmq.NewMQMD()
 	mqmd.CorrelId = corr
 	mqmd.MsgId = id
-	err = tbs.putMessageOnQueue(queue, mqmd, []byte(msg))
+	err = tbs.PutMessageOnQueue(queue, mqmd, []byte(msg))
 	require.NoError(t, err)
 
 	// don't wait forever

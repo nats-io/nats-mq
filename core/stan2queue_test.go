@@ -31,7 +31,7 @@ func TestSimpleSendOnStanReceiveOnQueue(t *testing.T) {
 	err = tbs.SC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.getMessageFromQueue(queue, 5000)
+	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 }
@@ -66,7 +66,7 @@ func TestSendOnStanReceiveOnQueueMQMD(t *testing.T) {
 	err = tbs.SC.Publish("test", data)
 	require.NoError(t, err)
 
-	mqmd, data, err := tbs.getMessageFromQueue(queue, 5000)
+	mqmd, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 

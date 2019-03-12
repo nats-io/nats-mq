@@ -28,13 +28,31 @@ type TestEnv struct {
 	NC *nats.Conn // for bypassing the bridge
 	SC stan.Conn  // for bypassing the bridge
 
+	natsURL     string
+	clusterName string
+
 	Bridge *BridgeServer
 	Config *BridgeConfig
 }
 
-// StartTestEnvironment sreates a new test environment and bridge server
-// The MQ setting on the connectionconfigs will be filled in
+// StartTestEnvironment calls StartTestEnvironmentInfrastructure
+// followed by StartBridge
 func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
+	tbs, err := StartTestEnvironmentInfrastructure()
+	if err != nil {
+		return nil, err
+	}
+	err = tbs.StartBridge(connections)
+	if err != nil {
+		tbs.Close()
+		return nil, err
+	}
+	return tbs, err
+}
+
+// StartTestEnvironmentInfrastructure creates the MQMgr, Nats and streaming
+// but does not start a bridge, you can use StartBridge to start a bridge afterward
+func StartTestEnvironmentInfrastructure() (*TestEnv, error) {
 	tbs := &TestEnv{}
 
 	mqServer, qmgr, err := StartMQTestServer(5 * time.Second)
@@ -48,12 +66,12 @@ func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
 	opts.Port = -1
 	tbs.Gnatsd = gnatsd.RunServer(&opts)
 
-	natsServerURL := fmt.Sprintf("nats://localhost:%d", opts.Port)
+	tbs.natsURL = fmt.Sprintf("nats://localhost:%d", opts.Port)
 
-	clusterName := nuid.Next()
+	tbs.clusterName = nuid.Next()
 	sOpts := nss.GetDefaultOptions()
-	sOpts.ID = clusterName
-	sOpts.NATSServerURL = natsServerURL
+	sOpts.ID = tbs.clusterName
+	sOpts.NATSServerURL = tbs.natsURL
 	nOpts := nss.DefaultNatsServerOptions
 	nOpts.Port = -1
 
@@ -65,29 +83,35 @@ func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
 
 	tbs.Stan = s
 
-	nc, err := nats.Connect(natsServerURL)
+	nc, err := nats.Connect(tbs.natsURL)
 	if err != nil {
 		tbs.Close()
 		return nil, err
 	}
 	tbs.NC = nc
 
-	sc, err := stan.Connect(clusterName, nuid.Next(), stan.NatsConn(tbs.NC))
+	sc, err := stan.Connect(tbs.clusterName, nuid.Next(), stan.NatsConn(tbs.NC))
 	if err != nil {
 		tbs.Close()
 		return nil, err
 	}
 	tbs.SC = sc
 
+	return tbs, nil
+}
+
+// StartBridge is the second half of StartTestEnvironment
+// it is provided separately so that environment can be created before the bridge runs
+func (tbs *TestEnv) StartBridge(connections []ConnectionConfig) error {
 	config := DefaultBridgeConfig()
 	config.NATS = NATSConfig{
-		Servers:        []string{natsServerURL},
+		Servers:        []string{tbs.natsURL},
 		ConnectTimeout: 2000,
 		ReconnectWait:  2000,
 		MaxReconnects:  5,
 	}
 	config.STAN = NATSStreamingConfig{
-		ClusterID:          clusterName,
+		ClusterID:          tbs.clusterName,
 		ClientID:           nuid.Next(),
 		PubAckWait:         5000,
 		DiscoverPrefix:     stan.DefaultDiscoverPrefix,
@@ -97,7 +121,7 @@ func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
 
 	for i, c := range connections {
 		c.MQ = MQConfig{
-			ConnectionName: mqServer.AppHostPort,
+			ConnectionName: tbs.MQServer.AppHostPort,
 			ChannelName:    "DEV.APP.SVRCONN",
 			QueueManager:   "QM1",
 		}
@@ -108,26 +132,27 @@ func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
 
 	tbs.Config = &config
 	tbs.Bridge = NewBridgeServer()
-	err = tbs.Bridge.LoadConfig(config)
+	err := tbs.Bridge.LoadConfig(config)
 	if err != nil {
 		tbs.Close()
-		return nil, err
+		return err
 	}
 	err = tbs.Bridge.Start()
 	if err != nil {
 		tbs.Close()
-		return nil, err
+		return err
 	}
 
-	return tbs, nil
+	return nil
 }
 
-func (tbs *TestEnv) getQueueManagerName() string {
+// GetQueueManagerName get the queue manager name for the test MQ server
+func (tbs *TestEnv) GetQueueManagerName() string {
 	return "QM1"
 }
 
-// Use the test environments extra connection to talk to the queue, bypassing the bridge's connection
-func (tbs *TestEnv) getMessageFromQueue(qName string, waitMillis int32) (*ibmmq.MQMD, []byte, error) {
+// GetMessageFromQueue uses the test environments extra connection to talk to the queue, bypassing the bridge's connection
+func (tbs *TestEnv) GetMessageFromQueue(qName string, waitMillis int32) (*ibmmq.MQMD, []byte, error) {
 	mqod := ibmmq.NewMQOD()
 	openOptions := ibmmq.MQOO_INPUT_EXCLUSIVE
 	mqod.ObjectType = ibmmq.MQOT_Q
@@ -157,7 +182,7 @@ func (tbs *TestEnv) getMessageFromQueue(qName string, waitMillis int32) (*ibmmq.
 }
 
 // Use the test environments extra connection to talk to the queue, bypassing the bridge's connection
-func (tbs *TestEnv) putMessageOnQueue(qName string, mqmd *ibmmq.MQMD, msgData []byte) error {
+func (tbs *TestEnv) PutMessageOnQueue(qName string, mqmd *ibmmq.MQMD, msgData []byte) error {
 	mqod := ibmmq.NewMQOD()
 	mqod.ObjectType = ibmmq.MQOT_Q
 	mqod.ObjectName = qName // Note queue uses name, topic uses string
@@ -168,8 +193,8 @@ func (tbs *TestEnv) putMessageOnQueue(qName string, mqmd *ibmmq.MQMD, msgData []
 	return tbs.QMgr.Put1(mqod, mqmd, pmo, buffer)
 }
 
-// Use the test environments extra connection to talk to the topic, bypassing the bridge's connection
-func (tbs *TestEnv) putMessageOnTopic(topicName string, mqmd *ibmmq.MQMD, msgData []byte) error {
+// PutMessageOnTopic uses the test environments extra connection to talk to the topic, bypassing the bridge's connection
+func (tbs *TestEnv) PutMessageOnTopic(topicName string, mqmd *ibmmq.MQMD, msgData []byte) error {
 	mqod := ibmmq.NewMQOD()
 	mqod.ObjectType = ibmmq.MQOT_TOPIC
 	mqod.ObjectString = topicName // Note queue uses name, topic uses string
