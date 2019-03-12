@@ -73,22 +73,22 @@ func main() {
 	nc.Subscribe(subject, func(msg *nats.Msg) {
 		count++
 		if count%1000 == 0 {
-			log.Printf("count = %d", count)
+			log.Printf("received count = %d", count)
 		}
 		if count == iterations {
 			done <- true
 		}
 	})
 
+	putmqmd := ibmmq.NewMQMD()
+	pmo := ibmmq.NewMQPMO()
+	pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
+	msgData := "hello"
+	buffer := []byte(msgData)
+
 	log.Printf("sending %d messages through the bridge...", iterations)
 	start := time.Now()
 	for i := 0; i < iterations; i++ {
-		putmqmd := ibmmq.NewMQMD()
-		pmo := ibmmq.NewMQPMO()
-		pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
-		putmqmd.Format = ibmmq.MQFMT_STRING
-		msgData := "hello"
-		buffer := []byte(msgData)
 		err = qObject.Put(putmqmd, pmo, buffer)
 	}
 	<-done
