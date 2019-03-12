@@ -11,7 +11,7 @@ import (
 type Topic2StanConnector struct {
 	sync.Mutex
 
-	config ConnectionConfig
+	config ConnectorConfig
 	bridge *BridgeServer
 
 	qMgr  *ibmmq.MQQueueManager
@@ -21,7 +21,7 @@ type Topic2StanConnector struct {
 }
 
 // NewTopic2StanConnector create a new MQ to Stan connector
-func NewTopic2StanConnector(bridge *BridgeServer, config ConnectionConfig) Connector {
+func NewTopic2StanConnector(bridge *BridgeServer, config ConnectorConfig) Connector {
 	return &Topic2StanConnector{
 		config: config,
 		bridge: bridge,
@@ -33,7 +33,7 @@ func (mq *Topic2StanConnector) String() string {
 }
 
 // Config returns the configuraiton for this connector
-func (mq *Topic2StanConnector) Config() ConnectionConfig {
+func (mq *Topic2StanConnector) Config() ConnectorConfig {
 	return mq.config
 }
 

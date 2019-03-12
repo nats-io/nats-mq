@@ -16,8 +16,8 @@ func TestSimpleSendOnNatsReceiveOnTopic(t *testing.T) {
 	topic := "dev/"
 	msg := "hello world"
 
-	connect := []ConnectionConfig{
-		ConnectionConfig{
+	connect := []ConnectorConfig{
+		ConnectorConfig{
 			Type:           "NATS2Topic",
 			Subject:        subject,
 			Topic:          topic,
@@ -59,8 +59,8 @@ func TestSendOnNATSReceiveOnTopicMQMD(t *testing.T) {
 	topic := "dev/"
 	msg := "hello world"
 
-	connect := []ConnectionConfig{
-		ConnectionConfig{
+	connect := []ConnectorConfig{
+		ConnectorConfig{
 			Type:           "NATS2Topic",
 			Subject:        subject,
 			Topic:          topic,

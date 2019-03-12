@@ -27,7 +27,7 @@ type BridgeServer struct {
 	stan stan.Conn
 
 	connectors  []Connector
-	replyToInfo map[string]ConnectionConfig
+	replyToInfo map[string]ConnectorConfig
 }
 
 // Connector is used to type the various connectors in the bridge, primarily for shutdown
@@ -35,7 +35,7 @@ type Connector interface {
 	Start() error
 	Shutdown() error
 	String() string
-	Config() ConnectionConfig
+	Config() ConnectorConfig
 }
 
 // NewBridgeServer creates a new bridge server with a default logger
@@ -110,7 +110,7 @@ func (bridge *BridgeServer) Start() error {
 	bridge.running = true
 	bridge.startTime = time.Now()
 	bridge.Logger = logging.NewNATSLogger(bridge.config.Logging)
-	bridge.replyToInfo = map[string]ConnectionConfig{}
+	bridge.replyToInfo = map[string]ConnectorConfig{}
 	bridge.connectors = []Connector{}
 
 	bridge.Logger.Noticef("starting MQ-NATS bridge, version %s", version)
@@ -178,7 +178,7 @@ func (bridge *BridgeServer) initializeConnectors() error {
 	return nil
 }
 
-func (bridge *BridgeServer) createConnector(config ConnectionConfig) (Connector, error) {
+func (bridge *BridgeServer) createConnector(config ConnectorConfig) (Connector, error) {
 	switch config.Type {
 	case Queue2NATS:
 		bridge.replyToInfo["S:"+config.Subject] = config
@@ -243,7 +243,7 @@ func (bridge *BridgeServer) connectorError(connector Connector, err error) {
 	bridge.restartConnector(connector.Config(), description)
 }
 
-func (bridge *BridgeServer) restartConnector(config ConnectionConfig, description string) {
+func (bridge *BridgeServer) restartConnector(config ConnectorConfig, description string) {
 	bridge.Lock()
 	defer bridge.Unlock()
 

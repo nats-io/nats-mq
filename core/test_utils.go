@@ -37,7 +37,7 @@ type TestEnv struct {
 
 // StartTestEnvironment calls StartTestEnvironmentInfrastructure
 // followed by StartBridge
-func StartTestEnvironment(connections []ConnectionConfig) (*TestEnv, error) {
+func StartTestEnvironment(connections []ConnectorConfig) (*TestEnv, error) {
 	tbs, err := StartTestEnvironmentInfrastructure()
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func StartTestEnvironmentInfrastructure() (*TestEnv, error) {
 
 // StartBridge is the second half of StartTestEnvironment
 // it is provided separately so that environment can be created before the bridge runs
-func (tbs *TestEnv) StartBridge(connections []ConnectionConfig) error {
+func (tbs *TestEnv) StartBridge(connections []ConnectorConfig) error {
 	config := DefaultBridgeConfig()
 	config.NATS = NATSConfig{
 		Servers:        []string{tbs.natsURL},

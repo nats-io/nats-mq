@@ -19,14 +19,14 @@ func TestSendReceiveOnNATSThruQueue(t *testing.T) {
 	msg := "hello world"
 	response := "goodbye"
 
-	connect := []ConnectionConfig{
-		ConnectionConfig{
+	connect := []ConnectorConfig{
+		ConnectorConfig{
 			Type:           "NATS2Queue",
 			Subject:        subject,
 			Queue:          queue,
 			ExcludeHeaders: true,
 		},
-		ConnectionConfig{
+		ConnectorConfig{
 			Type:           "Queue2NATS",
 			Subject:        replyToSubject,
 			Queue:          replyQueue,
@@ -74,14 +74,14 @@ func TestSendReceiveOnMQThruNATS(t *testing.T) {
 	msg := "hello world"
 	response := "goodbye"
 
-	connect := []ConnectionConfig{
-		ConnectionConfig{
+	connect := []ConnectorConfig{
+		ConnectorConfig{
 			Type:           "Queue2NATS",
 			Subject:        subject,
 			Queue:          queue,
 			ExcludeHeaders: true,
 		},
-		ConnectionConfig{
+		ConnectorConfig{
 			Type:           "NATS2Queue",
 			Subject:        replyToSubject,
 			Queue:          replyQueue,
@@ -118,14 +118,14 @@ func TestSendReceiveOnMQThruNATSHeaderInNotOut(t *testing.T) {
 	msg := "hello world"
 	response := "goodbye"
 
-	connect := []ConnectionConfig{
-		ConnectionConfig{
+	connect := []ConnectorConfig{
+		ConnectorConfig{
 			Type:           "Queue2NATS",
 			Subject:        subject,
 			Queue:          queue,
 			ExcludeHeaders: false,
 		},
-		ConnectionConfig{
+		ConnectorConfig{
 			Type:           "NATS2Queue",
 			Subject:        replyToSubject,
 			Queue:          replyQueue,
@@ -164,14 +164,14 @@ func TestSendReceiveOnStanThruQueue(t *testing.T) {
 	msg := "hello world"
 	response := "goodbye"
 
-	connect := []ConnectionConfig{
-		ConnectionConfig{
+	connect := []ConnectorConfig{
+		ConnectorConfig{
 			Type:           "Stan2Queue",
 			Channel:        channel,
 			Queue:          queue,
 			ExcludeHeaders: false,
 		},
-		ConnectionConfig{
+		ConnectorConfig{
 			Type:           "Queue2Stan",
 			Channel:        replyToChannel,
 			Queue:          replyQueue,
@@ -226,14 +226,14 @@ func TestSendReceiveOnMQThruStan(t *testing.T) {
 	msg := "hello world"
 	response := "goodbye"
 
-	connect := []ConnectionConfig{
-		ConnectionConfig{
+	connect := []ConnectorConfig{
+		ConnectorConfig{
 			Type:           "Queue2Stan",
 			Channel:        channel,
 			Queue:          queue,
 			ExcludeHeaders: false,
 		},
-		ConnectionConfig{
+		ConnectorConfig{
 			Type:           "Stan2Queue",
 			Channel:        replyToChannel,
 			Queue:          replyQueue,

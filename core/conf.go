@@ -38,7 +38,7 @@ type BridgeConfig struct {
 
 	Logging logging.Config
 
-	Connect []ConnectionConfig
+	Connect []ConnectorConfig
 }
 
 // DefaultBridgeConfig generates a default configuration with
@@ -102,8 +102,8 @@ type NATSStreamingConfig struct {
 	ConnectWait        int // milliseconds
 }
 
-// ConnectionConfig configuration for a bridge connection (of any type)
-type ConnectionConfig struct {
+// ConnectorConfig configuration for a bridge connection (of any type)
+type ConnectorConfig struct {
 	Type string // Can be Queue2NATS or any of the other constants
 
 	Channel string // used for stan connections

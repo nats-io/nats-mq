@@ -20,8 +20,8 @@ func main() {
 	queue := "DEV.QUEUE.1"
 	msg := "hello world"
 
-	connect := []core.ConnectionConfig{
-		core.ConnectionConfig{
+	connect := []core.ConnectorConfig{
+		core.ConnectorConfig{
 			Type:           "Queue2NATS",
 			Subject:        subject,
 			Queue:          queue,

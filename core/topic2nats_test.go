@@ -16,8 +16,8 @@ func TestSimpleSendOnTopicReceiveOnNats(t *testing.T) {
 	topic := "dev/"
 	msg := "hello world"
 
-	connect := []ConnectionConfig{
-		ConnectionConfig{
+	connect := []ConnectorConfig{
+		ConnectorConfig{
 			Type:           "Topic2NATS",
 			Subject:        subject,
 			Topic:          topic,
@@ -57,8 +57,8 @@ func TestSendOnTopicReceiveOnNatsMQMD(t *testing.T) {
 	id := bytes.Repeat([]byte{1}, int(ibmmq.MQ_MSG_ID_LENGTH))
 	corr := bytes.Repeat([]byte{1}, int(ibmmq.MQ_CORREL_ID_LENGTH))
 
-	connect := []ConnectionConfig{
-		ConnectionConfig{
+	connect := []ConnectorConfig{
+		ConnectorConfig{
 			Type:           "Topic2NATS",
 			Subject:        subject,
 			Topic:          topic,

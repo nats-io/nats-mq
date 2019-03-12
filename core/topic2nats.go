@@ -11,7 +11,7 @@ import (
 type Topic2NATSConnector struct {
 	sync.Mutex
 
-	config ConnectionConfig
+	config ConnectorConfig
 	bridge *BridgeServer
 
 	qMgr  *ibmmq.MQQueueManager
@@ -21,7 +21,7 @@ type Topic2NATSConnector struct {
 }
 
 // NewTopic2NATSConnector create a new MQ to Stan connector
-func NewTopic2NATSConnector(bridge *BridgeServer, config ConnectionConfig) Connector {
+func NewTopic2NATSConnector(bridge *BridgeServer, config ConnectorConfig) Connector {
 	return &Topic2NATSConnector{
 		config: config,
 		bridge: bridge,
@@ -33,7 +33,7 @@ func (mq *Topic2NATSConnector) String() string {
 }
 
 // Config returns the configuraiton for this connector
-func (mq *Topic2NATSConnector) Config() ConnectionConfig {
+func (mq *Topic2NATSConnector) Config() ConnectorConfig {
 	return mq.config
 }
 
