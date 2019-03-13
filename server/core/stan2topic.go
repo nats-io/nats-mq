@@ -2,20 +2,21 @@ package core
 
 import (
 	"fmt"
-	"github.com/nats-io/go-nats-streaming"
 	"sync"
 	"time"
 
+	"github.com/nats-io/go-nats-streaming"
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	"github.com/nats-io/nats-mq/stats"
+	"github.com/nats-io/nats-mq/server/conf"
+	"github.com/nats-io/nats-mq/server/stats"
 )
 
 // Stan2TopicConnector connects a STAN channel to an MQ Topic
 type Stan2TopicConnector struct {
 	sync.Mutex
 
-	config ConnectorConfig
-	bridge *BridgeServer
+	config conf.ConnectorConfig
+	bridge Bridge
 
 	qMgr  *ibmmq.MQQueueManager
 	topic *ibmmq.MQObject
@@ -26,7 +27,7 @@ type Stan2TopicConnector struct {
 }
 
 // NewStan2TopicConnector create a new Stan to MQ connector
-func NewStan2TopicConnector(bridge *BridgeServer, config ConnectorConfig) Connector {
+func NewStan2TopicConnector(bridge Bridge, config conf.ConnectorConfig) Connector {
 	return &Stan2TopicConnector{
 		config: config,
 		bridge: bridge,
@@ -46,7 +47,7 @@ func (mq *Stan2TopicConnector) Stats() *stats.ConnectorStats {
 }
 
 // Config returns the configuraiton for this connector
-func (mq *Stan2TopicConnector) Config() ConnectorConfig {
+func (mq *Stan2TopicConnector) Config() conf.ConnectorConfig {
 	return mq.config
 }
 
@@ -55,21 +56,21 @@ func (mq *Stan2TopicConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.bridge.stan == nil {
+	if mq.bridge.Stan() == nil {
 		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
 	}
 
 	mqconfig := mq.config.MQ
 	topicName := mq.config.Topic
 
-	mq.bridge.Logger.Tracef("starting connection %s", mq.String())
+	mq.bridge.Logger().Tracef("starting connection %s", mq.String())
 
-	qMgr, err := ConnectToQueueManager(mqconfig)
+	qMgr, err :=ConnectToQueueManager(mqconfig)
 	if err != nil {
 		return err
 	}
 
-	mq.bridge.Logger.Tracef("connected to queue manager %s at %s as %s for %s", mqconfig.QueueManager, mqconfig.ConnectionName, mqconfig.ChannelName, mq.String())
+	mq.bridge.Logger().Tracef("connected to queue manager %s at %s as %s for %s", mqconfig.QueueManager, mqconfig.ConnectionName, mqconfig.ChannelName, mq.String())
 
 	mq.qMgr = qMgr
 
@@ -86,9 +87,9 @@ func (mq *Stan2TopicConnector) Start() error {
 	}
 
 	mq.topic = &qObject
-	mq.bridge.Logger.Tracef("opened %s", topicName)
+	mq.bridge.Logger().Tracef("opened %s", topicName)
 
-	sub, err := mq.bridge.stan.Subscribe(mq.config.Channel, mq.messageHandler)
+	sub, err := mq.bridge.Stan().Subscribe(mq.config.Channel, mq.messageHandler)
 
 	if err != nil {
 		return err
@@ -97,8 +98,8 @@ func (mq *Stan2TopicConnector) Start() error {
 	mq.sub = sub
 
 	mq.stats.AddConnect()
-	mq.bridge.Logger.Tracef("reading %s", mq.config.Channel)
-	mq.bridge.Logger.Noticef("started connection %s", mq.String())
+	mq.bridge.Logger().Tracef("reading %s", mq.config.Channel)
+	mq.bridge.Logger().Noticef("started connection %s", mq.String())
 
 	return nil
 }
@@ -115,7 +116,7 @@ func (mq *Stan2TopicConnector) messageHandler(m *stan.Msg) {
 	}
 
 	mq.stats.AddMessageIn(int64(len(m.Data)))
-	mqmd, handle, buffer, err := mq.bridge.natsToMQMessage(m.Data, "", qmgrFlag)
+	mqmd, handle, buffer, err := mq.bridge.NATSToMQMessage(m.Data, "", qmgrFlag)
 
 	pmo := ibmmq.NewMQPMO()
 	pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
@@ -125,7 +126,7 @@ func (mq *Stan2TopicConnector) messageHandler(m *stan.Msg) {
 	err = mq.topic.Put(mqmd, pmo, buffer)
 
 	if err != nil {
-		mq.bridge.Logger.Noticef("MQ publish failure, %s, %s", mq.String(), err.Error())
+		mq.bridge.Logger().Noticef("MQ publish failure, %s, %s", mq.String(), err.Error())
 	} else {
 		mq.stats.AddMessageOut(int64(len(buffer)))
 		mq.stats.AddRequestTime(time.Now().Sub(start))
@@ -137,7 +138,7 @@ func (mq *Stan2TopicConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	mq.bridge.Logger.Noticef("shutting down connection %s", mq.String())
+	mq.bridge.Logger().Noticef("shutting down connection %s", mq.String())
 
 	var err error
 
@@ -150,7 +151,7 @@ func (mq *Stan2TopicConnector) Shutdown() error {
 
 	if mq.qMgr != nil {
 		_ = mq.qMgr.Disc()
-		mq.bridge.Logger.Tracef("disconnected from queue manager for %s", mq.String())
+		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
 	if mq.sub != nil {

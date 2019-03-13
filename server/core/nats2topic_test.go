@@ -1,24 +1,26 @@
 package core
 
 import (
-	"github.com/ibm-messaging/mq-golang/ibmmq"
-	"github.com/nats-io/nats-mq/message"
 	"testing"
 	"time"
 
+	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nats-mq/message"
+	"github.com/nats-io/nats-mq/server/conf"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSimpleSendOnStanReceiveOnTopic(t *testing.T) {
+func TestSimpleSendOnNatsReceiveOnTopic(t *testing.T) {
 	var topicObject ibmmq.MQObject
-	channel := "test"
+
+	subject := "test"
 	topic := "dev/"
 	msg := "hello world"
 
-	connect := []ConnectorConfig{
-		ConnectorConfig{
-			Type:           "Stan2Topic",
-			Channel:        channel,
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "NATS2Topic",
+			Subject:        subject,
 			Topic:          topic,
 			ExcludeHeaders: true,
 		},
@@ -35,7 +37,7 @@ func TestSimpleSendOnStanReceiveOnTopic(t *testing.T) {
 	require.NoError(t, err)
 	defer sub.Close(0)
 
-	err = tbs.SC.Publish("test", []byte(msg))
+	err = tbs.NC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
 	mqmd := ibmmq.NewMQMD()
@@ -50,17 +52,18 @@ func TestSimpleSendOnStanReceiveOnTopic(t *testing.T) {
 	require.Equal(t, msg, string(buffer[:datalen]))
 }
 
-func TestSendOnStanReceiveOnTopicMQMD(t *testing.T) {
+func TestSendOnNATSReceiveOnTopicMQMD(t *testing.T) {
 	var topicObject ibmmq.MQObject
+
 	start := time.Now().UTC()
-	channel := "test"
+	subject := "test"
 	topic := "dev/"
 	msg := "hello world"
 
-	connect := []ConnectorConfig{
-		ConnectorConfig{
-			Type:           "Stan2Topic",
-			Channel:        channel,
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "NATS2Topic",
+			Subject:        subject,
 			Topic:          topic,
 			ExcludeHeaders: false,
 		},
@@ -81,7 +84,7 @@ func TestSendOnStanReceiveOnTopicMQMD(t *testing.T) {
 	data, err := bridgeMessage.Encode()
 	require.NoError(t, err)
 
-	err = tbs.SC.Publish("test", data)
+	err = tbs.NC.Publish("test", data)
 	require.NoError(t, err)
 
 	mqmd := ibmmq.NewMQMD()

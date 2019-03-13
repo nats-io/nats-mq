@@ -1,8 +1,8 @@
-package core
+package conf
 
 import (
 	"github.com/nats-io/go-nats-streaming"
-	"github.com/nats-io/nats-mq/logging"
+	"github.com/nats-io/nats-mq/server/logging"
 )
 
 // Queue2NATS type for an mq queue to nats connector

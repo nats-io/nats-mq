@@ -2,74 +2,75 @@ package core
 
 import (
 	"fmt"
-	"github.com/nats-io/go-nats-streaming"
 	"sync"
 	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	"github.com/nats-io/nats-mq/stats"
+	"github.com/nats-io/go-nats"
+	"github.com/nats-io/nats-mq/server/conf"
+	"github.com/nats-io/nats-mq/server/stats"
 )
 
-// Stan2QueueConnector connects a STAN channel to an MQ Queue
-type Stan2QueueConnector struct {
+// NATS2QueueConnector connects a NATS subject to an MQ queue
+type NATS2QueueConnector struct {
 	sync.Mutex
 
-	config ConnectorConfig
-	bridge *BridgeServer
+	config conf.ConnectorConfig
+	bridge Bridge
 
 	qMgr  *ibmmq.MQQueueManager
 	queue *ibmmq.MQObject
 
-	sub stan.Subscription
+	sub *nats.Subscription
 
 	stats *stats.ConnectorStats
 }
 
-// NewStan2QueueConnector create a new Stan to MQ connector
-func NewStan2QueueConnector(bridge *BridgeServer, config ConnectorConfig) Connector {
-	return &Stan2QueueConnector{
+// NewNATS2QueueConnector create a nats to MQ connector
+func NewNATS2QueueConnector(bridge Bridge, config conf.ConnectorConfig) Connector {
+	return &NATS2QueueConnector{
 		config: config,
 		bridge: bridge,
 		stats:  stats.NewConnectorStats(),
 	}
 }
 
-func (mq *Stan2QueueConnector) String() string {
-	return fmt.Sprintf("STAN:%s to Queue:%s", mq.config.Channel, mq.config.Queue)
+func (mq *NATS2QueueConnector) String() string {
+	return fmt.Sprintf("NATS:%s to Queue:%s", mq.config.Subject, mq.config.Queue)
 }
 
 // Stats returns a copy of the current stats for this connector
-func (mq *Stan2QueueConnector) Stats() *stats.ConnectorStats {
+func (mq *NATS2QueueConnector) Stats() *stats.ConnectorStats {
 	mq.Lock()
 	defer mq.Unlock()
 	return mq.stats.Clone()
 }
 
 // Config returns the configuraiton for this connector
-func (mq *Stan2QueueConnector) Config() ConnectorConfig {
+func (mq *NATS2QueueConnector) Config() conf.ConnectorConfig {
 	return mq.config
 }
 
 // Start the connector
-func (mq *Stan2QueueConnector) Start() error {
+func (mq *NATS2QueueConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.bridge.stan == nil {
-		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
+	if mq.bridge.NATS() == nil {
+		return fmt.Errorf("%s connector requires nats to be available", mq.String())
 	}
 
 	mqconfig := mq.config.MQ
 	queueName := mq.config.Queue
 
-	mq.bridge.Logger.Tracef("starting connection %s", mq.String())
+	mq.bridge.Logger().Tracef("starting connection %s", mq.String())
 
 	qMgr, err := ConnectToQueueManager(mqconfig)
 	if err != nil {
 		return err
 	}
 
-	mq.bridge.Logger.Tracef("connected to queue manager %s at %s as %s for %s", mqconfig.QueueManager, mqconfig.ConnectionName, mqconfig.ChannelName, mq.String())
+	mq.bridge.Logger().Tracef("connected to queue manager %s at %s as %s for %s", mqconfig.QueueManager, mqconfig.ConnectionName, mqconfig.ChannelName, mq.String())
 
 	mq.qMgr = qMgr
 
@@ -87,22 +88,21 @@ func (mq *Stan2QueueConnector) Start() error {
 
 	mq.queue = &qObject
 
-	sub, err := mq.bridge.stan.Subscribe(mq.config.Channel, mq.messageHandler)
+	sub, err := mq.bridge.NATS().Subscribe(mq.config.Subject, mq.messageHandler)
 
 	if err != nil {
 		return err
 	}
 
 	mq.sub = sub
-
 	mq.stats.AddConnect()
-	mq.bridge.Logger.Tracef("opened and reading %s", queueName)
-	mq.bridge.Logger.Noticef("started connection %s", mq.String())
+	mq.bridge.Logger().Tracef("opened and reading %s", queueName)
+	mq.bridge.Logger().Noticef("started connection %s", mq.String())
 
 	return nil
 }
 
-func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
+func (mq *NATS2QueueConnector) messageHandler(m *nats.Msg) {
 	mq.Lock()
 	defer mq.Unlock()
 	start := time.Now()
@@ -114,7 +114,7 @@ func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
 	}
 
 	mq.stats.AddMessageIn(int64(len(m.Data)))
-	mqmd, handle, buffer, err := mq.bridge.natsToMQMessage(m.Data, "", qmgrFlag)
+	mqmd, handle, buffer, err := mq.bridge.NATSToMQMessage(m.Data, m.Reply, qmgrFlag)
 
 	pmo := ibmmq.NewMQPMO()
 	pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
@@ -124,7 +124,7 @@ func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
 	err = mq.queue.Put(mqmd, pmo, buffer)
 
 	if err != nil {
-		mq.bridge.Logger.Noticef("MQ publish failure, %s, %s", mq.String(), err.Error())
+		mq.bridge.Logger().Noticef("MQ publish failure, %s, %s", mq.String(), err.Error())
 	} else {
 		mq.stats.AddMessageOut(int64(len(buffer)))
 		mq.stats.AddRequestTime(time.Now().Sub(start))
@@ -132,11 +132,11 @@ func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
 }
 
 // Shutdown the connector
-func (mq *Stan2QueueConnector) Shutdown() error {
+func (mq *NATS2QueueConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	mq.bridge.Logger.Noticef("shutting down connection %s", mq.String())
+	mq.bridge.Logger().Noticef("shutting down connection %s", mq.String())
 
 	var err error
 
@@ -149,7 +149,7 @@ func (mq *Stan2QueueConnector) Shutdown() error {
 
 	if mq.qMgr != nil {
 		_ = mq.qMgr.Disc()
-		mq.bridge.Logger.Tracef("disconnected from queue manager for %s", mq.String())
+		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
 	if mq.sub != nil {
@@ -157,5 +157,6 @@ func (mq *Stan2QueueConnector) Shutdown() error {
 		mq.sub = nil
 	}
 	mq.stats.AddDisconnect()
+
 	return err // ignore the disconnect error
 }

@@ -7,7 +7,8 @@ import (
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"github.com/nats-io/go-nats"
-	"github.com/nats-io/nats-mq/core"
+	"github.com/nats-io/nats-mq/server/conf"
+	"github.com/nats-io/nats-mq/server/core"
 )
 
 var iterations int
@@ -20,8 +21,8 @@ func main() {
 	queue := "DEV.QUEUE.1"
 	msg := "hello world"
 
-	connect := []core.ConnectorConfig{
-		core.ConnectorConfig{
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
 			Type:           "Queue2NATS",
 			Subject:        subject,
 			Queue:          queue,

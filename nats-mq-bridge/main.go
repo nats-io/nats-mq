@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/nats-io/nats-mq/core"
+	"github.com/nats-io/nats-mq/server/core"
 )
 
 var configFile string
@@ -29,17 +29,17 @@ func main() {
 			signal := <-sigChan
 
 			if signal == os.Interrupt {
-				if server.Logger != nil {
+				if server.Logger() != nil {
 					fmt.Println() // clear the line for the control-C
-					server.Logger.Noticef("received sig-interrupt, shutting down")
+					server.Logger().Noticef("received sig-interrupt, shutting down")
 				}
 				server.Stop()
 				os.Exit(0)
 			}
 
 			if signal == syscall.SIGHUP {
-				if server.Logger != nil {
-					server.Logger.Errorf("received sig-hup, restarting")
+				if server.Logger() != nil {
+					server.Logger().Errorf("received sig-hup, restarting")
 				}
 				server.Stop()
 				server := core.NewBridgeServer()
@@ -47,8 +47,8 @@ func main() {
 				err = server.Start()
 
 				if err != nil {
-					if server.Logger != nil {
-						server.Logger.Errorf("error starting bridge, %s", err.Error())
+					if server.Logger() != nil {
+						server.Logger().Errorf("error starting bridge, %s", err.Error())
 					} else {
 						log.Printf("error starting bridge, %s", err.Error())
 					}
@@ -64,8 +64,8 @@ func main() {
 	err = server.Start()
 
 	if err != nil {
-		if server.Logger != nil {
-			server.Logger.Errorf("error starting bridge, %s", err.Error())
+		if server.Logger() != nil {
+			server.Logger().Errorf("error starting bridge, %s", err.Error())
 		} else {
 			log.Printf("error starting bridge, %s", err.Error())
 		}

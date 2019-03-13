@@ -155,11 +155,11 @@ func (bridge *BridgeServer) mapPropertiesToHandle(msg *message.BridgeMessage, qm
 	return handle, nil
 }
 
-//mqToNATSMessage convert an incoming MQ message to a set of NATS bytes and a reply subject
+//MQToNATSMessage convert an incoming MQ message to a set of NATS bytes and a reply subject
 // if the qmgr is nil, the return value is just the message body
 // if the qmgr is not nil the message is encoded as a BridgeMessage
 // The data array is always just bytes from MQ, and is not an encoded BridgeMessage
-func (bridge *BridgeServer) mqToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMessageHandle, data []byte, length int, qmgr *ibmmq.MQQueueManager) ([]byte, string, error) {
+func (bridge *BridgeServer) MQToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMessageHandle, data []byte, length int, qmgr *ibmmq.MQQueueManager) ([]byte, string, error) {
 	replySubject := ""
 	replyChannel := ""
 	replyQ := ""
@@ -206,11 +206,11 @@ func (bridge *BridgeServer) mqToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMes
 	return encoded, replySubject, nil
 }
 
-// natsToMQMessage decode an incoming nats message to an MQ message
+// NATSToMQMessage decode an incoming nats message to an MQ message
 // if the qmgr is nil, data is considered to just be a message body
 // if the qmgr is not nil the message is treated as an encoded BridgeMessage
 // The returned byte array just bytes from MQ, and is not an encoded BridgeMessage
-func (bridge *BridgeServer) natsToMQMessage(data []byte, replyTo string, qmgr *ibmmq.MQQueueManager) (*ibmmq.MQMD, ibmmq.MQMessageHandle, []byte, error) {
+func (bridge *BridgeServer) NATSToMQMessage(data []byte, replyTo string, qmgr *ibmmq.MQQueueManager) (*ibmmq.MQMD, ibmmq.MQMessageHandle, []byte, error) {
 	replyQ := ""
 	replyQMgr := ""
 

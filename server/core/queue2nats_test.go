@@ -1,25 +1,27 @@
 package core
 
 import (
-	"github.com/ibm-messaging/mq-golang/ibmmq"
-	"github.com/nats-io/nats-mq/message"
+	"bytes"
 	"testing"
 	"time"
 
-	stan "github.com/nats-io/go-nats-streaming"
+	"github.com/ibm-messaging/mq-golang/ibmmq"
+	nats "github.com/nats-io/go-nats"
+	"github.com/nats-io/nats-mq/message"
+	"github.com/nats-io/nats-mq/server/conf"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSimpleSendOnTopicReceiveOnStan(t *testing.T) {
-	channel := "test"
-	topic := "dev/"
+func TestSimpleSendOnQueueReceiveOnNats(t *testing.T) {
+	subject := "test"
+	queue := "DEV.QUEUE.1"
 	msg := "hello world"
 
-	connect := []ConnectorConfig{
-		ConnectorConfig{
-			Type:           "Topic2Stan",
-			Channel:        channel,
-			Topic:          topic,
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "Queue2NATS",
+			Subject:        subject,
+			Queue:          queue,
 			ExcludeHeaders: true,
 		},
 	}
@@ -30,12 +32,12 @@ func TestSimpleSendOnTopicReceiveOnStan(t *testing.T) {
 
 	done := make(chan string)
 
-	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
+	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- string(msg.Data)
 	})
 	defer sub.Unsubscribe()
 
-	err = tbs.PutMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
+	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
 	require.NoError(t, err)
 
 	timer := time.NewTimer(3 * time.Second)
@@ -48,17 +50,19 @@ func TestSimpleSendOnTopicReceiveOnStan(t *testing.T) {
 	require.Equal(t, msg, received)
 }
 
-func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
+func TestSendOnQueueReceiveOnNatsMQMD(t *testing.T) {
 	start := time.Now().UTC()
-	channel := "test"
-	topic := "dev/"
+	subject := "test"
+	queue := "DEV.QUEUE.1"
 	msg := "hello world"
+	id := bytes.Repeat([]byte{1}, int(ibmmq.MQ_MSG_ID_LENGTH))
+	corr := bytes.Repeat([]byte{1}, int(ibmmq.MQ_CORREL_ID_LENGTH))
 
-	connect := []ConnectorConfig{
-		ConnectorConfig{
-			Type:           "Topic2Stan",
-			Channel:        channel,
-			Topic:          topic,
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "Queue2NATS",
+			Subject:        subject,
+			Queue:          queue,
 			ExcludeHeaders: false,
 		},
 	}
@@ -69,13 +73,15 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 
 	done := make(chan []byte)
 
-	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
+	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- msg.Data
 	})
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()
-	err = tbs.PutMessageOnTopic(topic, mqmd, []byte(msg))
+	mqmd.CorrelId = corr
+	mqmd.MsgId = id
+	err = tbs.PutMessageOnQueue(queue, mqmd, []byte(msg))
 	require.NoError(t, err)
 
 	// don't wait forever
@@ -95,4 +101,6 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	require.Equal(t, msg, string(bridgeMessage.Body))
 	require.Equal(t, start.Format("20060102"), bridgeMessage.Header.PutDate)
 	require.True(t, start.Format("15040500") < bridgeMessage.Header.PutTime)
+	require.ElementsMatch(t, id, bridgeMessage.Header.MsgID)
+	require.ElementsMatch(t, corr, bridgeMessage.Header.CorrelID)
 }

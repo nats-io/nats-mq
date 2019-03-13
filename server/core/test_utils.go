@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nats-mq/server/conf"
 	"github.com/nats-io/nuid"
 	"log"
 	"os/exec"
@@ -32,12 +33,12 @@ type TestEnv struct {
 	clusterName string
 
 	Bridge *BridgeServer
-	Config *BridgeConfig
+	Config *conf.BridgeConfig
 }
 
 // StartTestEnvironment calls StartTestEnvironmentInfrastructure
 // followed by StartBridge
-func StartTestEnvironment(connections []ConnectorConfig) (*TestEnv, error) {
+func StartTestEnvironment(connections []conf.ConnectorConfig) (*TestEnv, error) {
 	tbs, err := StartTestEnvironmentInfrastructure()
 	if err != nil {
 		return nil, err
@@ -102,15 +103,15 @@ func StartTestEnvironmentInfrastructure() (*TestEnv, error) {
 
 // StartBridge is the second half of StartTestEnvironment
 // it is provided separately so that environment can be created before the bridge runs
-func (tbs *TestEnv) StartBridge(connections []ConnectorConfig) error {
-	config := DefaultBridgeConfig()
-	config.NATS = NATSConfig{
+func (tbs *TestEnv) StartBridge(connections []conf.ConnectorConfig) error {
+	config := conf.DefaultBridgeConfig()
+	config.NATS = conf.NATSConfig{
 		Servers:        []string{tbs.natsURL},
 		ConnectTimeout: 2000,
 		ReconnectWait:  2000,
 		MaxReconnects:  5,
 	}
-	config.STAN = NATSStreamingConfig{
+	config.STAN = conf.NATSStreamingConfig{
 		ClusterID:          tbs.clusterName,
 		ClientID:           nuid.Next(),
 		PubAckWait:         5000,
@@ -120,7 +121,7 @@ func (tbs *TestEnv) StartBridge(connections []ConnectorConfig) error {
 	}
 
 	for i, c := range connections {
-		c.MQ = MQConfig{
+		c.MQ = conf.MQConfig{
 			ConnectionName: tbs.MQServer.AppHostPort,
 			ChannelName:    "DEV.APP.SVRCONN",
 			QueueManager:   "QM1",
@@ -285,7 +286,7 @@ func StartMQTestServer(waitForStart time.Duration) (*MQTestServer, *ibmmq.MQQueu
 	}
 	mq.WebHostPort = fmt.Sprintf("localhost:%s", port)
 
-	config := MQConfig{
+	config := conf.MQConfig{
 		ConnectionName: mq.AppHostPort,
 		ChannelName:    "DEV.APP.SVRCONN",
 		QueueManager:   "QM1",

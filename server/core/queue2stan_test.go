@@ -2,12 +2,13 @@ package core
 
 import (
 	"bytes"
-	"github.com/ibm-messaging/mq-golang/ibmmq"
-	"github.com/nats-io/nats-mq/message"
 	"testing"
 	"time"
 
+	"github.com/ibm-messaging/mq-golang/ibmmq"
 	stan "github.com/nats-io/go-nats-streaming"
+	"github.com/nats-io/nats-mq/message"
+	"github.com/nats-io/nats-mq/server/conf"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,8 +17,8 @@ func TestSimpleSendOnQueueReceiveOnStan(t *testing.T) {
 	queue := "DEV.QUEUE.1"
 	msg := "hello world"
 
-	connect := []ConnectorConfig{
-		ConnectorConfig{
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
 			Type:           "Queue2Stan",
 			Channel:        channel,
 			Queue:          queue,
@@ -57,8 +58,8 @@ func TestSendOnQueueReceiveOnStanMQMD(t *testing.T) {
 	id := bytes.Repeat([]byte{1}, int(ibmmq.MQ_MSG_ID_LENGTH))
 	corr := bytes.Repeat([]byte{1}, int(ibmmq.MQ_CORREL_ID_LENGTH))
 
-	connect := []ConnectorConfig{
-		ConnectorConfig{
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
 			Type:           "Queue2Stan",
 			Channel:        channel,
 			Queue:          queue,
