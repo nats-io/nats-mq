@@ -7,7 +7,6 @@ import (
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"github.com/nats-io/nats-mq/server/conf"
-	"github.com/nats-io/nats-mq/server/stats"
 )
 
 // Topic2StanConnector connects an MQ queue to a NATS channel
@@ -22,7 +21,7 @@ type Topic2StanConnector struct {
 	sub   *ibmmq.MQObject
 	ctlo  *ibmmq.MQCTLO
 
-	stats *stats.ConnectorStats
+	stats ConnectorStats
 }
 
 // NewTopic2StanConnector create a new MQ to Stan connector
@@ -30,7 +29,7 @@ func NewTopic2StanConnector(bridge Bridge, config conf.ConnectorConfig) Connecto
 	return &Topic2StanConnector{
 		config: config,
 		bridge: bridge,
-		stats:  stats.NewConnectorStats(),
+		stats:  NewConnectorStats(),
 	}
 }
 
@@ -39,10 +38,10 @@ func (mq *Topic2StanConnector) String() string {
 }
 
 // Stats returns a copy of the current stats for this connector
-func (mq *Topic2StanConnector) Stats() *stats.ConnectorStats {
+func (mq *Topic2StanConnector) Stats() ConnectorStats {
 	mq.Lock()
 	defer mq.Unlock()
-	return mq.stats.Clone()
+	return mq.stats
 }
 
 // Config returns the configuraiton for this connector
@@ -54,6 +53,8 @@ func (mq *Topic2StanConnector) Config() conf.ConnectorConfig {
 func (mq *Topic2StanConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
+
+	mq.stats.Name = mq.String()
 
 	if mq.bridge.NATS() == nil {
 		return fmt.Errorf("%s connector requires nats to be available", mq.String())
@@ -167,6 +168,8 @@ func (mq *Topic2StanConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
 
+	mq.stats.AddDisconnect()
+
 	if mq.topic == nil {
 		return nil
 	}
@@ -210,10 +213,9 @@ func (mq *Topic2StanConnector) Shutdown() error {
 
 	if mq.qMgr != nil {
 		_ = mq.qMgr.Disc()
+		mq.qMgr = nil
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
-
-	mq.stats.AddDisconnect()
 
 	return nil //err // ignore the disconnect error
 }

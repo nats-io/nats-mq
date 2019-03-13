@@ -7,7 +7,6 @@ import (
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"github.com/nats-io/nats-mq/server/conf"
-	"github.com/nats-io/nats-mq/server/stats"
 )
 
 // Queue2STANConnector connects an MQ queue to a NATS subject
@@ -21,7 +20,7 @@ type Queue2STANConnector struct {
 	queue *ibmmq.MQObject
 	ctlo  *ibmmq.MQCTLO
 
-	stats *stats.ConnectorStats
+	stats ConnectorStats
 }
 
 // NewQueue2STANConnector create a new MQ to Stan connector
@@ -29,7 +28,7 @@ func NewQueue2STANConnector(bridge Bridge, config conf.ConnectorConfig) Connecto
 	return &Queue2STANConnector{
 		config: config,
 		bridge: bridge,
-		stats:  stats.NewConnectorStats(),
+		stats:  NewConnectorStats(),
 	}
 }
 
@@ -38,10 +37,10 @@ func (mq *Queue2STANConnector) String() string {
 }
 
 // Stats returns a copy of the current stats for this connector
-func (mq *Queue2STANConnector) Stats() *stats.ConnectorStats {
+func (mq *Queue2STANConnector) Stats() ConnectorStats {
 	mq.Lock()
 	defer mq.Unlock()
-	return mq.stats.Clone()
+	return mq.stats
 }
 
 // Config returns the configuraiton for this connector
@@ -53,6 +52,7 @@ func (mq *Queue2STANConnector) Config() conf.ConnectorConfig {
 func (mq *Queue2STANConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
+	mq.stats.Name = mq.String()
 
 	if mq.bridge.Stan() == nil {
 		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
@@ -63,7 +63,7 @@ func (mq *Queue2STANConnector) Start() error {
 
 	mq.bridge.Logger().Tracef("starting connection %s", mq.String())
 
-	qMgr, err :=ConnectToQueueManager(mqconfig)
+	qMgr, err := ConnectToQueueManager(mqconfig)
 	if err != nil {
 		return err
 	}
@@ -163,6 +163,7 @@ func (mq *Queue2STANConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQ
 func (mq *Queue2STANConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
+	mq.stats.AddDisconnect()
 
 	mq.bridge.Logger().Noticef("shutting down connection %s", mq.String())
 
@@ -183,9 +184,9 @@ func (mq *Queue2STANConnector) Shutdown() error {
 
 	if mq.qMgr != nil {
 		_ = mq.qMgr.Disc()
+		mq.qMgr = nil
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
-	mq.stats.AddDisconnect()
 	return err // ignore the disconnect error
 }

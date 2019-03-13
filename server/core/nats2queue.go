@@ -8,7 +8,6 @@ import (
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"github.com/nats-io/go-nats"
 	"github.com/nats-io/nats-mq/server/conf"
-	"github.com/nats-io/nats-mq/server/stats"
 )
 
 // NATS2QueueConnector connects a NATS subject to an MQ queue
@@ -23,7 +22,7 @@ type NATS2QueueConnector struct {
 
 	sub *nats.Subscription
 
-	stats *stats.ConnectorStats
+	stats ConnectorStats
 }
 
 // NewNATS2QueueConnector create a nats to MQ connector
@@ -31,7 +30,7 @@ func NewNATS2QueueConnector(bridge Bridge, config conf.ConnectorConfig) Connecto
 	return &NATS2QueueConnector{
 		config: config,
 		bridge: bridge,
-		stats:  stats.NewConnectorStats(),
+		stats:  NewConnectorStats(),
 	}
 }
 
@@ -40,10 +39,10 @@ func (mq *NATS2QueueConnector) String() string {
 }
 
 // Stats returns a copy of the current stats for this connector
-func (mq *NATS2QueueConnector) Stats() *stats.ConnectorStats {
+func (mq *NATS2QueueConnector) Stats() ConnectorStats {
 	mq.Lock()
 	defer mq.Unlock()
-	return mq.stats.Clone()
+	return mq.stats
 }
 
 // Config returns the configuraiton for this connector
@@ -55,6 +54,8 @@ func (mq *NATS2QueueConnector) Config() conf.ConnectorConfig {
 func (mq *NATS2QueueConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
+
+	mq.stats.Name = mq.String()
 
 	if mq.bridge.NATS() == nil {
 		return fmt.Errorf("%s connector requires nats to be available", mq.String())
@@ -95,6 +96,7 @@ func (mq *NATS2QueueConnector) Start() error {
 	}
 
 	mq.sub = sub
+
 	mq.stats.AddConnect()
 	mq.bridge.Logger().Tracef("opened and reading %s", queueName)
 	mq.bridge.Logger().Noticef("started connection %s", mq.String())
@@ -135,6 +137,7 @@ func (mq *NATS2QueueConnector) messageHandler(m *nats.Msg) {
 func (mq *NATS2QueueConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
+	mq.stats.AddDisconnect()
 
 	mq.bridge.Logger().Noticef("shutting down connection %s", mq.String())
 
@@ -149,6 +152,7 @@ func (mq *NATS2QueueConnector) Shutdown() error {
 
 	if mq.qMgr != nil {
 		_ = mq.qMgr.Disc()
+		mq.qMgr = nil
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
@@ -156,7 +160,6 @@ func (mq *NATS2QueueConnector) Shutdown() error {
 		mq.sub.Unsubscribe()
 		mq.sub = nil
 	}
-	mq.stats.AddDisconnect()
 
 	return err // ignore the disconnect error
 }

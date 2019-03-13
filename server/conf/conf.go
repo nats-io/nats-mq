@@ -39,6 +39,11 @@ type BridgeConfig struct {
 	Logging logging.Config
 
 	Connect []ConnectorConfig
+
+	HTTPHost  string
+	HTTPPort  int
+	HTTPSPort int
+	TLS       TLSConf
 }
 
 // DefaultBridgeConfig generates a default configuration with

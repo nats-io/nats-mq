@@ -2,6 +2,8 @@ package core
 
 import (
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -29,6 +31,11 @@ type BridgeServer struct {
 
 	connectors  []Connector
 	replyToInfo map[string]conf.ConnectorConfig
+
+	httpReqStats     map[string]int64
+	httpHandler      *http.ServeMux
+	monitoringServer *http.Server
+	httpListener     net.Listener
 }
 
 // NewBridgeServer creates a new bridge server with a default logger
@@ -125,6 +132,10 @@ func (bridge *BridgeServer) Start() error {
 		return err
 	}
 
+	if err := bridge.startMonitoring(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -154,6 +165,11 @@ func (bridge *BridgeServer) Stop() {
 		bridge.stan.Close()
 		bridge.logger.Noticef("disconnected from NATS streaming")
 	}
+
+	err := bridge.StopMonitoring()
+	if err != nil {
+		bridge.logger.Noticef("error shutting down monitoring server %s", err.Error())
+	}
 }
 
 func (bridge *BridgeServer) initializeConnectors() error {
@@ -182,7 +198,6 @@ func (bridge *BridgeServer) startConnectors() error {
 
 // ConnectorError is called by a connector if it has a failure that requires a reconnect
 func (bridge *BridgeServer) ConnectorError(connector Connector, err error) {
-	bridge.Lock()
 	description := connector.String()
 	bridge.logger.Errorf("a connector error has occurred, trying to restart %s, %s", description, err.Error())
 
@@ -192,21 +207,10 @@ func (bridge *BridgeServer) ConnectorError(connector Connector, err error) {
 		bridge.logger.Noticef("error shutting down connector %s, trying to restart, %s", description, err.Error())
 	}
 
-	count := len(bridge.connectors)
-	for i, c := range bridge.connectors {
-		if c == connector {
-			bridge.connectors[i] = bridge.connectors[count-1]
-			bridge.connectors[count-1] = nil // so we can gc it
-			bridge.connectors = bridge.connectors[:count-1]
-			break
-		}
-	}
-	bridge.Unlock()
-
-	bridge.restartConnector(connector.Config(), description)
+	bridge.restartConnector(connector, description)
 }
 
-func (bridge *BridgeServer) restartConnector(config conf.ConnectorConfig, description string) {
+func (bridge *BridgeServer) restartConnector(connector Connector, description string) {
 	bridge.Lock()
 	defer bridge.Unlock()
 
@@ -214,13 +218,7 @@ func (bridge *BridgeServer) restartConnector(config conf.ConnectorConfig, descri
 		return
 	}
 
-	newConnector, err := CreateConnector(config, bridge)
-
-	if err != nil {
-		bridge.logger.Noticef("error creating connector %s for restart, %s", description, err.Error())
-	}
-
-	err = newConnector.Start()
+	err := connector.Start()
 
 	if err != nil {
 		interval := bridge.config.ReconnectInterval
@@ -229,11 +227,9 @@ func (bridge *BridgeServer) restartConnector(config conf.ConnectorConfig, descri
 		go func() {
 			<-timer.C
 			bridge.logger.Noticef("trying to restart connector %s", description)
-			bridge.restartConnector(config, description)
+			bridge.restartConnector(connector, description)
 		}()
 	}
-
-	bridge.connectors = append(bridge.connectors, newConnector)
 }
 
 // NATS hosts a shared nats connection for the connectors

@@ -7,7 +7,6 @@ import (
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"github.com/nats-io/nats-mq/server/conf"
-	"github.com/nats-io/nats-mq/server/stats"
 )
 
 // Topic2NATSConnector connects an MQ queue to a NATS subject
@@ -22,7 +21,7 @@ type Topic2NATSConnector struct {
 	sub   *ibmmq.MQObject
 	ctlo  *ibmmq.MQCTLO
 
-	stats *stats.ConnectorStats
+	stats ConnectorStats
 }
 
 // NewTopic2NATSConnector create a new MQ to Stan connector
@@ -30,7 +29,7 @@ func NewTopic2NATSConnector(bridge Bridge, config conf.ConnectorConfig) Connecto
 	return &Topic2NATSConnector{
 		config: config,
 		bridge: bridge,
-		stats:  stats.NewConnectorStats(),
+		stats:  NewConnectorStats(),
 	}
 }
 
@@ -39,10 +38,10 @@ func (mq *Topic2NATSConnector) String() string {
 }
 
 // Stats returns a copy of the current stats for this connector
-func (mq *Topic2NATSConnector) Stats() *stats.ConnectorStats {
+func (mq *Topic2NATSConnector) Stats() ConnectorStats {
 	mq.Lock()
 	defer mq.Unlock()
-	return mq.stats.Clone()
+	return mq.stats
 }
 
 // Config returns the configuraiton for this connector
@@ -55,6 +54,8 @@ func (mq *Topic2NATSConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
+	mq.stats.Name = mq.String()
+
 	if mq.bridge.NATS() == nil {
 		return fmt.Errorf("%s connector requires nats to be available", mq.String())
 	}
@@ -64,7 +65,7 @@ func (mq *Topic2NATSConnector) Start() error {
 
 	mq.bridge.Logger().Tracef("starting connection %s", mq.String())
 
-	qMgr, err :=ConnectToQueueManager(mqconfig)
+	qMgr, err := ConnectToQueueManager(mqconfig)
 	if err != nil {
 		return err
 	}
@@ -170,6 +171,7 @@ func (mq *Topic2NATSConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQ
 func (mq *Topic2NATSConnector) Shutdown() error {
 	mq.Lock()
 	defer mq.Unlock()
+	mq.stats.AddDisconnect()
 
 	if mq.topic == nil {
 		return nil
@@ -214,9 +216,9 @@ func (mq *Topic2NATSConnector) Shutdown() error {
 
 	if mq.qMgr != nil {
 		_ = mq.qMgr.Disc()
+		mq.qMgr = nil
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
-	mq.stats.AddDisconnect()
 	return nil //err // ignore the disconnect error
 }

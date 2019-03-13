@@ -7,7 +7,6 @@ import (
 	stan "github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/server/conf"
 	"github.com/nats-io/nats-mq/server/logging"
-	"github.com/nats-io/nats-mq/server/stats"
 )
 
 // Bridge abstracts the bridge server for connectors
@@ -28,7 +27,7 @@ type Connector interface {
 	Shutdown() error
 	String() string
 	Config() conf.ConnectorConfig
-	Stats() *stats.ConnectorStats
+	Stats() ConnectorStats
 }
 
 // CreateConnector builds a connector from the supplied configuration
