@@ -3,8 +3,10 @@ package core
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nats-mq/stats"
 )
 
 // Queue2NATSConnector connects an MQ queue to a NATS subject
@@ -17,6 +19,8 @@ type Queue2NATSConnector struct {
 	qMgr  *ibmmq.MQQueueManager
 	queue *ibmmq.MQObject
 	ctlo  *ibmmq.MQCTLO
+
+	stats *stats.ConnectorStats
 }
 
 // NewQueue2NATSConnector create a new MQ to Stan connector
@@ -24,11 +28,19 @@ func NewQueue2NATSConnector(bridge *BridgeServer, config ConnectorConfig) Connec
 	return &Queue2NATSConnector{
 		config: config,
 		bridge: bridge,
+		stats:  stats.NewConnectorStats(),
 	}
 }
 
 func (mq *Queue2NATSConnector) String() string {
 	return fmt.Sprintf("Queue:%s to NATS:%s", mq.config.Queue, mq.config.Subject)
+}
+
+// Stats returns a copy of the current stats for this connector
+func (mq *Queue2NATSConnector) Stats() *stats.ConnectorStats {
+	mq.Lock()
+	defer mq.Unlock()
+	return mq.stats.Clone()
 }
 
 // Config returns the configuraiton for this connector
@@ -94,6 +106,7 @@ func (mq *Queue2NATSConnector) Start() error {
 		return err
 	}
 
+	mq.stats.AddConnect()
 	mq.bridge.Logger.Tracef("opened and reading %s", queueName)
 	mq.bridge.Logger.Noticef("started connection %s", mq.String())
 
@@ -103,6 +116,7 @@ func (mq *Queue2NATSConnector) Start() error {
 func (mq *Queue2NATSConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
 	mq.Lock()
 	defer mq.Unlock()
+	start := time.Now()
 
 	if mqErr != nil && mqErr.MQCC != ibmmq.MQCC_OK {
 		if mqErr.MQRC == ibmmq.MQRC_NO_MSG_AVAILABLE {
@@ -125,6 +139,7 @@ func (mq *Queue2NATSConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQ
 		qmgrFlag = nil
 	}
 
+	mq.stats.AddMessageIn(int64(bufferLen))
 	natsMsg, replyTo, err := mq.bridge.mqToNATSMessage(md, gmo.MsgHandle, buffer, bufferLen, qmgrFlag)
 
 	if err != nil {
@@ -142,6 +157,8 @@ func (mq *Queue2NATSConnector) messageHandler(hObj *ibmmq.MQObject, md *ibmmq.MQ
 		mq.qMgr.Back()
 	} else {
 		mq.qMgr.Cmit()
+		mq.stats.AddMessageOut(int64(len(natsMsg)))
+		mq.stats.AddRequestTime(time.Now().Sub(start))
 	}
 }
 
@@ -172,5 +189,6 @@ func (mq *Queue2NATSConnector) Shutdown() error {
 		mq.bridge.Logger.Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
+	mq.stats.AddDisconnect()
 	return err // ignore the disconnect error
 }

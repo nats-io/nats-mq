@@ -3,7 +3,9 @@ package core
 import (
 	"fmt"
 	"github.com/nats-io/go-nats"
+	"github.com/nats-io/nats-mq/stats"
 	"sync"
+	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 )
@@ -19,6 +21,8 @@ type NATS2QueueConnector struct {
 	queue *ibmmq.MQObject
 
 	sub *nats.Subscription
+
+	stats *stats.ConnectorStats
 }
 
 // NewNATS2QueueConnector create a nats to MQ connector
@@ -26,11 +30,19 @@ func NewNATS2QueueConnector(bridge *BridgeServer, config ConnectorConfig) Connec
 	return &NATS2QueueConnector{
 		config: config,
 		bridge: bridge,
+		stats:  stats.NewConnectorStats(),
 	}
 }
 
 func (mq *NATS2QueueConnector) String() string {
 	return fmt.Sprintf("NATS:%s to Queue:%s", mq.config.Subject, mq.config.Queue)
+}
+
+// Stats returns a copy of the current stats for this connector
+func (mq *NATS2QueueConnector) Stats() *stats.ConnectorStats {
+	mq.Lock()
+	defer mq.Unlock()
+	return mq.stats.Clone()
 }
 
 // Config returns the configuraiton for this connector
@@ -82,7 +94,7 @@ func (mq *NATS2QueueConnector) Start() error {
 	}
 
 	mq.sub = sub
-
+	mq.stats.AddConnect()
 	mq.bridge.Logger.Tracef("opened and reading %s", queueName)
 	mq.bridge.Logger.Noticef("started connection %s", mq.String())
 
@@ -92,6 +104,7 @@ func (mq *NATS2QueueConnector) Start() error {
 func (mq *NATS2QueueConnector) messageHandler(m *nats.Msg) {
 	mq.Lock()
 	defer mq.Unlock()
+	start := time.Now()
 
 	qmgrFlag := mq.qMgr
 
@@ -99,6 +112,7 @@ func (mq *NATS2QueueConnector) messageHandler(m *nats.Msg) {
 		qmgrFlag = nil
 	}
 
+	mq.stats.AddMessageIn(int64(len(m.Data)))
 	mqmd, handle, buffer, err := mq.bridge.natsToMQMessage(m.Data, m.Reply, qmgrFlag)
 
 	pmo := ibmmq.NewMQPMO()
@@ -110,6 +124,9 @@ func (mq *NATS2QueueConnector) messageHandler(m *nats.Msg) {
 
 	if err != nil {
 		mq.bridge.Logger.Noticef("MQ publish failure, %s, %s", mq.String(), err.Error())
+	} else {
+		mq.stats.AddMessageOut(int64(len(buffer)))
+		mq.stats.AddRequestTime(time.Now().Sub(start))
 	}
 }
 
@@ -138,6 +155,7 @@ func (mq *NATS2QueueConnector) Shutdown() error {
 		mq.sub.Unsubscribe()
 		mq.sub = nil
 	}
+	mq.stats.AddDisconnect()
 
 	return err // ignore the disconnect error
 }

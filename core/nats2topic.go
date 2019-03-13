@@ -3,7 +3,9 @@ package core
 import (
 	"fmt"
 	"github.com/nats-io/go-nats"
+	"github.com/nats-io/nats-mq/stats"
 	"sync"
+	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 )
@@ -19,6 +21,8 @@ type NATS2TopicConnector struct {
 	topic *ibmmq.MQObject
 
 	sub *nats.Subscription
+
+	stats *stats.ConnectorStats
 }
 
 // NewNATS2TopicConnector create a nats to MQ connector
@@ -26,11 +30,19 @@ func NewNATS2TopicConnector(bridge *BridgeServer, config ConnectorConfig) Connec
 	return &NATS2TopicConnector{
 		config: config,
 		bridge: bridge,
+		stats:  stats.NewConnectorStats(),
 	}
 }
 
 func (mq *NATS2TopicConnector) String() string {
 	return fmt.Sprintf("NATS:%s to Topic:%s", mq.config.Subject, mq.config.Topic)
+}
+
+// Stats returns a copy of the current stats for this connector
+func (mq *NATS2TopicConnector) Stats() *stats.ConnectorStats {
+	mq.Lock()
+	defer mq.Unlock()
+	return mq.stats.Clone()
 }
 
 // Config returns the configuraiton for this connector
@@ -81,11 +93,12 @@ func (mq *NATS2TopicConnector) Start() error {
 	if err != nil {
 		return err
 	}
+	mq.bridge.Logger.Tracef("listening to %s", mq.config.Subject)
 
 	mq.sub = sub
 
-	mq.bridge.Logger.Tracef("listening to %s", mq.config.Subject)
 	mq.bridge.Logger.Noticef("started connection %s", mq.String())
+	mq.stats.AddConnect()
 
 	return nil
 }
@@ -93,12 +106,15 @@ func (mq *NATS2TopicConnector) Start() error {
 func (mq *NATS2TopicConnector) messageHandler(m *nats.Msg) {
 	mq.Lock()
 	defer mq.Unlock()
+	start := time.Now()
 
 	qmgrFlag := mq.qMgr
 
 	if mq.config.ExcludeHeaders {
 		qmgrFlag = nil
 	}
+
+	mq.stats.AddMessageIn(int64(len(m.Data)))
 
 	mqmd, handle, buffer, err := mq.bridge.natsToMQMessage(m.Data, m.Reply, qmgrFlag)
 
@@ -111,6 +127,9 @@ func (mq *NATS2TopicConnector) messageHandler(m *nats.Msg) {
 
 	if err != nil {
 		mq.bridge.Logger.Noticef("MQ publish failure, %s, %s", mq.String(), err.Error())
+	} else {
+		mq.stats.AddMessageOut(int64(len(buffer)))
+		mq.stats.AddRequestTime(time.Now().Sub(start))
 	}
 }
 
@@ -139,6 +158,7 @@ func (mq *NATS2TopicConnector) Shutdown() error {
 		mq.sub.Unsubscribe()
 		mq.sub = nil
 	}
+	mq.stats.AddDisconnect()
 
 	return err // ignore the disconnect error
 }

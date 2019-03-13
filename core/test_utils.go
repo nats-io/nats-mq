@@ -181,7 +181,7 @@ func (tbs *TestEnv) GetMessageFromQueue(qName string, waitMillis int32) (*ibmmq.
 	return getmqmd, buffer[:datalen], nil
 }
 
-// Use the test environments extra connection to talk to the queue, bypassing the bridge's connection
+// PutMessageOnQueue uses the test environments extra connection to talk to the queue, bypassing the bridge's connection
 func (tbs *TestEnv) PutMessageOnQueue(qName string, mqmd *ibmmq.MQMD, msgData []byte) error {
 	mqod := ibmmq.NewMQOD()
 	mqod.ObjectType = ibmmq.MQOT_Q

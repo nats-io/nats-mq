@@ -2,14 +2,15 @@ package core
 
 import (
 	"fmt"
-	"github.com/nats-io/nats-mq/conf"
-	"github.com/nats-io/nats-mq/logging"
 	"os"
 	"sync"
 	"time"
 
 	nats "github.com/nats-io/go-nats"
 	stan "github.com/nats-io/go-nats-streaming"
+	"github.com/nats-io/nats-mq/conf"
+	"github.com/nats-io/nats-mq/logging"
+	"github.com/nats-io/nats-mq/stats"
 )
 
 var version = "0.0.0-dev"
@@ -36,6 +37,7 @@ type Connector interface {
 	Shutdown() error
 	String() string
 	Config() ConnectorConfig
+	Stats() *stats.ConnectorStats
 }
 
 // NewBridgeServer creates a new bridge server with a default logger

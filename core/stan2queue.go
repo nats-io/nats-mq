@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"github.com/nats-io/go-nats-streaming"
 	"sync"
+	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nats-mq/stats"
 )
 
 // Stan2QueueConnector connects a STAN channel to an MQ Queue
@@ -19,6 +21,8 @@ type Stan2QueueConnector struct {
 	queue *ibmmq.MQObject
 
 	sub stan.Subscription
+
+	stats *stats.ConnectorStats
 }
 
 // NewStan2QueueConnector create a new Stan to MQ connector
@@ -26,11 +30,19 @@ func NewStan2QueueConnector(bridge *BridgeServer, config ConnectorConfig) Connec
 	return &Stan2QueueConnector{
 		config: config,
 		bridge: bridge,
+		stats:  stats.NewConnectorStats(),
 	}
 }
 
 func (mq *Stan2QueueConnector) String() string {
 	return fmt.Sprintf("STAN:%s to Queue:%s", mq.config.Channel, mq.config.Queue)
+}
+
+// Stats returns a copy of the current stats for this connector
+func (mq *Stan2QueueConnector) Stats() *stats.ConnectorStats {
+	mq.Lock()
+	defer mq.Unlock()
+	return mq.stats.Clone()
 }
 
 // Config returns the configuraiton for this connector
@@ -83,6 +95,7 @@ func (mq *Stan2QueueConnector) Start() error {
 
 	mq.sub = sub
 
+	mq.stats.AddConnect()
 	mq.bridge.Logger.Tracef("opened and reading %s", queueName)
 	mq.bridge.Logger.Noticef("started connection %s", mq.String())
 
@@ -92,6 +105,7 @@ func (mq *Stan2QueueConnector) Start() error {
 func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
 	mq.Lock()
 	defer mq.Unlock()
+	start := time.Now()
 
 	qmgrFlag := mq.qMgr
 
@@ -99,6 +113,7 @@ func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
 		qmgrFlag = nil
 	}
 
+	mq.stats.AddMessageIn(int64(len(m.Data)))
 	mqmd, handle, buffer, err := mq.bridge.natsToMQMessage(m.Data, "", qmgrFlag)
 
 	pmo := ibmmq.NewMQPMO()
@@ -110,6 +125,9 @@ func (mq *Stan2QueueConnector) messageHandler(m *stan.Msg) {
 
 	if err != nil {
 		mq.bridge.Logger.Noticef("MQ publish failure, %s, %s", mq.String(), err.Error())
+	} else {
+		mq.stats.AddMessageOut(int64(len(buffer)))
+		mq.stats.AddRequestTime(time.Now().Sub(start))
 	}
 }
 
@@ -138,6 +156,6 @@ func (mq *Stan2QueueConnector) Shutdown() error {
 		mq.sub.Unsubscribe()
 		mq.sub = nil
 	}
-
+	mq.stats.AddDisconnect()
 	return err // ignore the disconnect error
 }
