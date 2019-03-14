@@ -36,14 +36,10 @@ type BridgeConfig struct {
 	NATS NATSConfig
 	STAN NATSStreamingConfig
 
-	Logging logging.Config
+	Logging    logging.Config
+	Monitoring MonitoringConfig
 
 	Connect []ConnectorConfig
-
-	HTTPHost  string
-	HTTPPort  int
-	HTTPSPort int
-	TLS       TLSConf
 }
 
 // DefaultBridgeConfig generates a default configuration with
@@ -72,6 +68,18 @@ type TLSConf struct {
 	Key  string
 	Cert string
 	Root string
+}
+
+// MonitoringConfig is used to define the host and port for monitoring
+// The HTTPPort vs HTTPSPort setting is used to determine if security is
+// enabled. By default the ports are 0 and monitoring is disabled. Set
+// a port to -1 to use ephemeral ports.
+// Similarly the host defaults to "" which indicates all network interfaces.
+type MonitoringConfig struct {
+	HTTPHost  string
+	HTTPPort  int
+	HTTPSPort int
+	TLS       TLSConf
 }
 
 // MQConfig configuration for an MQ Connection

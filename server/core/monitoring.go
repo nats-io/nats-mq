@@ -21,10 +21,15 @@ const (
 // startMonitoring starts the HTTP or HTTPs server if needed.
 // expects the lock to be held
 func (bridge *BridgeServer) startMonitoring() error {
-	config := bridge.config
+	config := bridge.config.Monitoring
 
 	if config.HTTPPort != 0 && config.HTTPSPort != 0 {
 		return fmt.Errorf("can't specify both HTTP (%v) and HTTPs (%v) ports", config.HTTPPort, config.HTTPSPort)
+	}
+
+	if config.HTTPPort == 0 && config.HTTPSPort == 0 {
+		bridge.logger.Noticef("monitoring is disabled")
+		return nil
 	}
 
 	secure := false
