@@ -48,6 +48,16 @@ func TestSimpleSendOnQueueReceiveOnNats(t *testing.T) {
 
 	received := <-done
 	require.Equal(t, msg, received)
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+	require.Equal(t, int64(len([]byte(msg))), connStats.BytesIn)
+	require.Equal(t, int64(len([]byte(msg))), connStats.BytesOut)
+	require.Equal(t, int64(1), connStats.Connects)
+	require.Equal(t, int64(0), connStats.Disconnects)
+	require.True(t, connStats.Connected)
 }
 
 func TestSendOnQueueReceiveOnNatsMQMD(t *testing.T) {
@@ -103,4 +113,14 @@ func TestSendOnQueueReceiveOnNatsMQMD(t *testing.T) {
 	require.True(t, start.Format("15040500") < bridgeMessage.Header.PutTime)
 	require.ElementsMatch(t, id, bridgeMessage.Header.MsgID)
 	require.ElementsMatch(t, corr, bridgeMessage.Header.CorrelID)
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+	require.Equal(t, int64(len([]byte(msg))), connStats.BytesIn)
+	require.Equal(t, int64(len(received)), connStats.BytesOut)
+	require.Equal(t, int64(1), connStats.Connects)
+	require.Equal(t, int64(0), connStats.Disconnects)
+	require.True(t, connStats.Connected)
 }

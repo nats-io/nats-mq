@@ -36,6 +36,7 @@ type BridgeServer struct {
 	httpHandler      *http.ServeMux
 	monitoringServer *http.Server
 	httpListener     net.Listener
+	monitoringURL    string
 }
 
 // NewBridgeServer creates a new bridge server with a default logger

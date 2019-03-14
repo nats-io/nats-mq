@@ -6,10 +6,11 @@ import (
 
 // BridgeStats wraps the current status of the bridge and all of its connectors
 type BridgeStats struct {
-	StartTime   int64            `json:"start_time"`
-	ServerTime  int64            `json:"current_time"`
-	UpTime      string           `json:"uptime"`
-	Connections []ConnectorStats `json:"connectors"`
+	StartTime    int64            `json:"start_time"`
+	ServerTime   int64            `json:"current_time"`
+	UpTime       string           `json:"uptime"`
+	Connections  []ConnectorStats `json:"connectors"`
+	HTTPRequests map[string]int64 `json:"http_requests"`
 }
 
 // ConnectorStats captures the statistics for a single connector

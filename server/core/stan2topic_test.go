@@ -49,6 +49,16 @@ func TestSimpleSendOnStanReceiveOnTopic(t *testing.T) {
 	datalen, err := topicObject.Get(mqmd, gmo, buffer)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(buffer[:datalen]))
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+	require.Equal(t, int64(len([]byte(msg))), connStats.BytesIn)
+	require.Equal(t, int64(datalen), connStats.BytesOut)
+	require.Equal(t, int64(1), connStats.Connects)
+	require.Equal(t, int64(0), connStats.Disconnects)
+	require.True(t, connStats.Connected)
 }
 
 func TestSendOnStanReceiveOnTopicMQMD(t *testing.T) {
@@ -79,10 +89,10 @@ func TestSendOnStanReceiveOnTopicMQMD(t *testing.T) {
 	defer sub.Close(0)
 
 	bridgeMessage := message.NewBridgeMessage([]byte(msg))
-	data, err := bridgeMessage.Encode()
+	encoded, err := bridgeMessage.Encode()
 	require.NoError(t, err)
 
-	err = tbs.SC.Publish("test", data)
+	err = tbs.SC.Publish("test", encoded)
 	require.NoError(t, err)
 
 	mqmd := ibmmq.NewMQMD()
@@ -98,4 +108,14 @@ func TestSendOnStanReceiveOnTopicMQMD(t *testing.T) {
 
 	require.Equal(t, start.Format("20060102"), mqmd.PutDate)
 	require.True(t, start.Format("15040500") < mqmd.PutTime)
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+	require.Equal(t, int64(len(encoded)), connStats.BytesIn)
+	require.Equal(t, int64(datalen), connStats.BytesOut)
+	require.Equal(t, int64(1), connStats.Connects)
+	require.Equal(t, int64(0), connStats.Disconnects)
+	require.True(t, connStats.Connected)
 }

@@ -35,6 +35,16 @@ func TestSimpleSendOnStanReceiveOnQueue(t *testing.T) {
 	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+	require.Equal(t, int64(len([]byte(msg))), connStats.BytesIn)
+	require.Equal(t, int64(len(data)), connStats.BytesOut)
+	require.Equal(t, int64(1), connStats.Connects)
+	require.Equal(t, int64(0), connStats.Disconnects)
+	require.True(t, connStats.Connected)
 }
 
 func TestSendOnStanReceiveOnQueueMQMD(t *testing.T) {
@@ -61,10 +71,10 @@ func TestSendOnStanReceiveOnQueueMQMD(t *testing.T) {
 	bridgeMessage := message.NewBridgeMessage([]byte(msg))
 	bridgeMessage.Header.CorrelID = corr
 	bridgeMessage.Header.MsgID = id
-	data, err := bridgeMessage.Encode()
+	encoded, err := bridgeMessage.Encode()
 	require.NoError(t, err)
 
-	err = tbs.SC.Publish("test", data)
+	err = tbs.SC.Publish("test", encoded)
 	require.NoError(t, err)
 
 	mqmd, data, err := tbs.GetMessageFromQueue(queue, 5000)
@@ -75,4 +85,14 @@ func TestSendOnStanReceiveOnQueueMQMD(t *testing.T) {
 	require.True(t, start.Format("15040500") < mqmd.PutTime)
 	require.ElementsMatch(t, id, mqmd.MsgId)
 	require.ElementsMatch(t, corr, mqmd.CorrelId)
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+	require.Equal(t, int64(len(encoded)), connStats.BytesIn)
+	require.Equal(t, int64(len(data)), connStats.BytesOut)
+	require.Equal(t, int64(1), connStats.Connects)
+	require.Equal(t, int64(0), connStats.Disconnects)
+	require.True(t, connStats.Connected)
 }

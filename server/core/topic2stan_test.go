@@ -47,6 +47,16 @@ func TestSimpleSendOnTopicReceiveOnStan(t *testing.T) {
 
 	received := <-done
 	require.Equal(t, msg, received)
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+	require.Equal(t, int64(len([]byte(msg))), connStats.BytesIn)
+	require.Equal(t, int64(len([]byte(msg))), connStats.BytesOut)
+	require.Equal(t, int64(1), connStats.Connects)
+	require.Equal(t, int64(0), connStats.Disconnects)
+	require.True(t, connStats.Connected)
 }
 
 func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
@@ -96,4 +106,14 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	require.Equal(t, msg, string(bridgeMessage.Body))
 	require.Equal(t, start.Format("20060102"), bridgeMessage.Header.PutDate)
 	require.True(t, start.Format("15040500") < bridgeMessage.Header.PutTime)
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+	require.Equal(t, int64(len([]byte(msg))), connStats.BytesIn)
+	require.Equal(t, int64(len(received)), connStats.BytesOut)
+	require.Equal(t, int64(1), connStats.Connects)
+	require.Equal(t, int64(0), connStats.Disconnects)
+	require.True(t, connStats.Connected)
 }

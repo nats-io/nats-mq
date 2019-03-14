@@ -85,6 +85,12 @@ func (bridge *BridgeServer) startMonitoring() error {
 	bridge.logger.Noticef("starting %s monitor on %s", monitorProtocol,
 		net.JoinHostPort(config.HTTPHost, strconv.Itoa(httpListener.Addr().(*net.TCPAddr).Port)))
 
+	mhp := net.JoinHostPort(config.HTTPHost, strconv.Itoa(httpListener.Addr().(*net.TCPAddr).Port))
+	if config.HTTPHost == "" {
+		mhp = "localhost" + mhp
+	}
+	bridge.monitoringURL = fmt.Sprintf("%s://%s/", monitorProtocol, mhp)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc(RootPath, bridge.HandleRoot)
@@ -192,7 +198,7 @@ func (bridge *BridgeServer) HandleHealthz(w http.ResponseWriter, r *http.Request
 }
 
 // stats calculates the stats for the server and connectors
-// assumes that the lock is held by the color
+// assumes that the lock is held by the caller
 func (bridge *BridgeServer) stats() BridgeStats {
 	stats := BridgeStats{}
 
@@ -205,5 +211,25 @@ func (bridge *BridgeServer) stats() BridgeStats {
 		stats.Connections = append(stats.Connections, connector.Stats())
 	}
 
+	stats.HTTPRequests = map[string]int64{}
+
+	for k, v := range bridge.httpReqStats {
+		stats.HTTPRequests[k] = int64(v)
+	}
+
 	return stats
+}
+
+// SafeStats grabs the lock then calls stats(), useful for tests
+func (bridge *BridgeServer) SafeStats() BridgeStats {
+	bridge.Lock()
+	bridge.Unlock()
+	return bridge.stats()
+}
+
+// GetMonitoringRootURL returns the protocol://host:port for the monitoring server, useful for testing
+func (bridge *BridgeServer) GetMonitoringRootURL() string {
+	bridge.Lock()
+	bridge.Unlock()
+	return bridge.monitoringURL
 }
