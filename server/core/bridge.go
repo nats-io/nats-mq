@@ -191,6 +191,7 @@ func (bridge *BridgeServer) initializeConnectors() error {
 func (bridge *BridgeServer) startConnectors() error {
 	for _, c := range bridge.connectors {
 		if err := c.Start(); err != nil {
+			bridge.logger.Noticef("error starting %s, %s", c.String(), err.Error())
 			return err
 		}
 	}
@@ -257,11 +258,9 @@ func (bridge *BridgeServer) connectToNATS() error {
 	bridge.logger.Noticef("connecting to NATS core...")
 
 	config := bridge.config.NATS
-
-	nc, err := nats.Connect(strings.Join(config.Servers, ","),
-		nats.MaxReconnects(config.MaxReconnects),
-		nats.ReconnectWait(time.Duration(config.ReconnectWait)*time.Millisecond),
-		nats.Timeout(time.Duration(config.ConnectTimeout)*time.Millisecond),
+	options := []nats.Option{nats.MaxReconnects(config.MaxReconnects),
+		nats.ReconnectWait(time.Duration(config.ReconnectWait) * time.Millisecond),
+		nats.Timeout(time.Duration(config.ConnectTimeout) * time.Millisecond),
 		nats.ErrorHandler(func(nc *nats.Conn, sub *nats.Subscription, err error) {
 			bridge.logger.Errorf("nats error %s", err.Error())
 		}),
@@ -280,12 +279,25 @@ func (bridge *BridgeServer) connectToNATS() error {
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
 			if bridge.running {
-				bridge.logger.Debugf("nats connection closed, shutting down bridge...")
+				bridge.logger.Errorf("nats connection closed, shutting down bridge...")
 				bridge.Lock()
 				go bridge.Stop()
 				bridge.Unlock()
 			}
-		}))
+		}),
+	}
+
+	if config.TLS.Root != "" {
+		options = append(options, nats.RootCAs(config.TLS.Root))
+	}
+
+	if config.TLS.Cert != "" {
+		options = append(options, nats.ClientCert(config.TLS.Cert, config.TLS.Key))
+	}
+
+	nc, err := nats.Connect(strings.Join(config.Servers, ","),
+		options...,
+	)
 
 	if err != nil {
 		return err

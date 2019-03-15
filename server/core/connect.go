@@ -13,23 +13,37 @@ import (
 
 // ConnectToQueueManager utility to connect to a queue manager from a configuration
 func ConnectToQueueManager(mqconfig conf.MQConfig) (*ibmmq.MQQueueManager, error) {
+	qMgrName := mqconfig.QueueManager
+
 	connectionOptions := ibmmq.NewMQCNO()
 	channelDefinition := ibmmq.NewMQCD()
-
-	qMgrName := mqconfig.QueueManager
-	channelDefinition.ChannelName = mqconfig.ChannelName
-	channelDefinition.ConnectionName = mqconfig.ConnectionName
-
-	connectionOptions.ClientConn = channelDefinition
-	connectionOptions.Options = ibmmq.MQCNO_CLIENT_BINDING
 
 	if mqconfig.UserName != "" {
 		connectionSecurityParams := ibmmq.NewMQCSP()
 		connectionSecurityParams.AuthenticationType = ibmmq.MQCSP_AUTH_USER_ID_AND_PWD
 		connectionSecurityParams.UserId = mqconfig.UserName
 		connectionSecurityParams.Password = mqconfig.Password
+
 		connectionOptions.SecurityParms = connectionSecurityParams
 	}
+
+	if mqconfig.KeyRepository != "" {
+		tlsParams := ibmmq.NewMQSCO()
+		tlsParams.KeyRepository = mqconfig.KeyRepository
+		tlsParams.CertificateLabel = mqconfig.CertificateLabel
+		connectionOptions.SSLConfig = tlsParams
+
+		channelDefinition.SSLCipherSpec = "TLS_RSA_WITH_AES_128_CBC_SHA256"
+		channelDefinition.SSLPeerName = mqconfig.SSLPeerName
+		channelDefinition.CertificateLabel = mqconfig.CertificateLabel
+		channelDefinition.SSLClientAuth = int32(ibmmq.MQSCA_REQUIRED)
+	}
+
+	channelDefinition.ChannelName = mqconfig.ChannelName
+	channelDefinition.ConnectionName = mqconfig.ConnectionName
+
+	connectionOptions.Options = ibmmq.MQCNO_CLIENT_BINDING
+	connectionOptions.ClientConn = channelDefinition
 
 	qMgr, err := ibmmq.Connx(qMgrName, connectionOptions)
 
@@ -61,10 +75,9 @@ func ConnectToSTANWithConfig(config conf.NATSStreamingConfig, nc *nats.Conn) (st
 // ConnectToNATSWithConfig utility to connect to nats from a config
 // unused by the bridge, which uses its own logger, this method uses "log"
 func ConnectToNATSWithConfig(config conf.NATSConfig) (*nats.Conn, error) {
-	nc, err := nats.Connect(strings.Join(config.Servers, ","),
-		nats.MaxReconnects(config.MaxReconnects),
-		nats.ReconnectWait(time.Duration(config.ReconnectWait)*time.Millisecond),
-		nats.Timeout(time.Duration(config.ConnectTimeout)*time.Millisecond),
+	options := []nats.Option{nats.MaxReconnects(config.MaxReconnects),
+		nats.ReconnectWait(time.Duration(config.ReconnectWait) * time.Millisecond),
+		nats.Timeout(time.Duration(config.ConnectTimeout) * time.Millisecond),
 		nats.ErrorHandler(func(nc *nats.Conn, sub *nats.Subscription, err error) {
 			log.Printf("nats error %s", err.Error())
 		}),
@@ -81,6 +94,19 @@ func ConnectToNATSWithConfig(config conf.NATSConfig) (*nats.Conn, error) {
 		nats.ClosedHandler(func(nc *nats.Conn) {
 			log.Printf("nats connection closed...")
 		}),
+	}
+
+	if config.TLS.Root != "" {
+		options = append(options, nats.RootCAs(config.TLS.Root))
+	}
+
+	if config.TLS.Cert != "" {
+		options = append(options, nats.ClientCert(config.TLS.Cert, config.TLS.Key))
+	}
+
+	nc, err := nats.Connect(strings.Join(config.Servers, ","),
+		options...,
 	)
+
 	return nc, err
 }

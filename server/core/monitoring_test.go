@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -71,4 +72,32 @@ func TestMonitoringPages(t *testing.T) {
 	require.Equal(t, int64(0), bridgeStats.Connections[0].MessagesOut)
 	require.Equal(t, int64(0), bridgeStats.Connections[0].BytesIn)
 	require.Equal(t, int64(0), bridgeStats.Connections[0].BytesOut)
+}
+
+func TestHealthzWithTLS(t *testing.T) {
+	subject := "test"
+	queue := "DEV.QUEUE.1"
+
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "NATS2Queue",
+			Subject:        subject,
+			Queue:          queue,
+			ExcludeHeaders: true,
+		},
+	}
+
+	tbs, err := StartTLSTestEnvironment(connect)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	client := &http.Client{Transport: tr}
+	response, err := client.Get(tbs.Bridge.GetMonitoringRootURL() + "healthz")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, response.StatusCode)
 }

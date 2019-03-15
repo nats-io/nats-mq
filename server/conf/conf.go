@@ -87,8 +87,13 @@ type MQConfig struct {
 	ConnectionName string
 	ChannelName    string
 	QueueManager   string
-	UserName       string
-	Password       string
+
+	UserName string
+	Password string
+
+	KeyRepository    string
+	CertificateLabel string
+	SSLPeerName      string
 }
 
 // NATSConfig configuration for a NATS connection
@@ -119,10 +124,10 @@ type NATSStreamingConfig struct {
 type ConnectorConfig struct {
 	Type string // Can be Queue2NATS or any of the other constants
 
-	Channel string // used for stan connections
+	Channel string // Used for stan connections
 	Subject string // Used for nats connections
 
-	MQ    MQConfig // connection information, nats connections are shared
+	MQ    MQConfig // Connection information, nats connections are shared
 	Topic string   // Used for the mq side of things
 	Queue string
 

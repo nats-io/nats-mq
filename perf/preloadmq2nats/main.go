@@ -31,7 +31,7 @@ func main() {
 	}
 
 	// Start the infrastructure
-	tbs, err := core.StartTestEnvironmentInfrastructure()
+	tbs, err := core.StartTestEnvironmentInfrastructure(false)
 	if err != nil {
 		log.Fatalf("error starting test environment, %s", err.Error())
 	}
@@ -75,7 +75,7 @@ func main() {
 	}
 
 	// Queue is ready, now start the bridge
-	tbs.StartBridge(connect)
+	tbs.StartBridge(connect, false)
 
 	<-done
 	end := time.Now()

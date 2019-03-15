@@ -36,7 +36,7 @@ export CGO_LDFLAGS="-L$MQ_INSTALLATION_PATH/lib64 -Wl,-rpath,$MQ_INSTALLATION_PA
 
  The dependency on the MQ package requires v3.3.4 to fix an rpath issue on Darwin.
 
-### Running the examples from the Go library
+#### Running the examples from the Go library
 
 The examples that pub/sub require an environment that tells them where the server is. You can use something like:
 
@@ -68,7 +68,7 @@ docker run \
 
 or use the `scripts/run_mq.sh` to execute that command.
 
-### Connecting to the docker web admin
+#### Connecting to the docker web admin
 
 [https://localhost:9443/ibmmq/console/](https://localhost:9443/ibmmq/console/)
 
@@ -81,7 +81,7 @@ Password: passw0rd
 
 Chrome may complain because the certificate for the server isn't valid, but go on through.
 
-### Connecting with an application
+#### Connecting with an application
 
 For applications the login is documented as:
 
@@ -91,3 +91,13 @@ Password: *none*
 ```
 
 I found that simply turning off user name and password works.
+
+#### TLS Setup
+
+See [this ibm post](https://developer.ibm.com/messaging/learn-mq/mq-tutorials/secure-mq-tls/) for information about how the test TLS files for the docker image were created. The generated certs/keys are in the resources folder under mqm. A script is provided `scripts/run_mq_tls.sh` to run the server with this TLS setting. The TLS script will also set the app password to `passw0rd` for testing.
+
+The server cert has the password `k3ypassw0rd`.
+
+The client cert has the password `tru5tpassw0rd`, and the label `QM1.cert`
+
+I created the kdb file using `runmqakm -cert -export -db client_key.p12 -pw tru5tpassw0rd -target_stashed -target_type kdb -target client.kdb -label "QM1.cert"`.
