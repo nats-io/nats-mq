@@ -124,3 +124,41 @@ func TestSendOnQueueReceiveOnNatsMQMD(t *testing.T) {
 	require.Equal(t, int64(0), connStats.Disconnects)
 	require.True(t, connStats.Connected)
 }
+
+func TestSimpleSendOnQueueReceiveOnNatsWithTLS(t *testing.T) {
+	subject := "test"
+	queue := "DEV.QUEUE.1"
+	msg := "hello world"
+
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "Queue2NATS",
+			Subject:        subject,
+			Queue:          queue,
+			ExcludeHeaders: true,
+		},
+	}
+
+	tbs, err := StartTLSTestEnvironment(connect)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	done := make(chan string)
+
+	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
+		done <- string(msg.Data)
+	})
+	defer sub.Unsubscribe()
+
+	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
+	require.NoError(t, err)
+
+	timer := time.NewTimer(3 * time.Second)
+	go func() {
+		<-timer.C
+		done <- ""
+	}()
+
+	received := <-done
+	require.Equal(t, msg, received)
+}

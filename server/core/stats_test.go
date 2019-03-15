@@ -48,6 +48,6 @@ func TestRequestTimes(t *testing.T) {
 
 	stats.AddRequestTime(dur)
 
-	require.Equal(t, float64(dur.Nanoseconds()), stats.RunningMovingAverage)
+	require.Equal(t, float64(dur.Nanoseconds()), stats.MovingAverage)
 	require.Equal(t, int64(1), stats.RequestCount)
 }

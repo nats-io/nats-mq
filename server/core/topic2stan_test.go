@@ -117,3 +117,41 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	require.Equal(t, int64(0), connStats.Disconnects)
 	require.True(t, connStats.Connected)
 }
+
+func TestSimpleSendOnTopicReceiveOnStanWithTLS(t *testing.T) {
+	channel := "test"
+	topic := "dev/"
+	msg := "hello world"
+
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "Topic2Stan",
+			Channel:        channel,
+			Topic:          topic,
+			ExcludeHeaders: true,
+		},
+	}
+
+	tbs, err := StartTLSTestEnvironment(connect)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	done := make(chan string)
+
+	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
+		done <- string(msg.Data)
+	})
+	defer sub.Unsubscribe()
+
+	err = tbs.PutMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
+	require.NoError(t, err)
+
+	timer := time.NewTimer(3 * time.Second)
+	go func() {
+		<-timer.C
+		done <- ""
+	}()
+
+	received := <-done
+	require.Equal(t, msg, received)
+}

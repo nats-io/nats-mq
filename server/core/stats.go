@@ -15,16 +15,16 @@ type BridgeStats struct {
 
 // ConnectorStats captures the statistics for a single connector
 type ConnectorStats struct {
-	Connected            bool    `json:"connected"`
-	Connects             int64   `json:"connects"`
-	Disconnects          int64   `json:"disconnects"`
-	Name                 string  `json:"name"`
-	BytesIn              int64   `json:"bytes_in"`
-	BytesOut             int64   `json:"bytes_out"`
-	MessagesIn           int64   `json:"msg_in"`
-	MessagesOut          int64   `json:"msg_out"`
-	RunningMovingAverage float64 `json:"rma"`
-	RequestCount         int64   `json:"count"`
+	Connected     bool    `json:"connected"`
+	Connects      int64   `json:"connects"`
+	Disconnects   int64   `json:"disconnects"`
+	Name          string  `json:"name"`
+	BytesIn       int64   `json:"bytes_in"`
+	BytesOut      int64   `json:"bytes_out"`
+	MessagesIn    int64   `json:"msg_in"`
+	MessagesOut   int64   `json:"msg_out"`
+	MovingAverage float64 `json:"rma"`
+	RequestCount  int64   `json:"count"`
 }
 
 // NewConnectorStats creates an empty stats, and initializes the request time histogram
@@ -57,8 +57,9 @@ func (stats *ConnectorStats) AddConnect() {
 }
 
 // AddRequestTime register a time, updating the request count, RMA and histogram
+// For information on the running moving average, see https://en.wikipedia.org/wiki/Moving_average
 func (stats *ConnectorStats) AddRequestTime(reqTime time.Duration) {
 	reqns := float64(reqTime.Nanoseconds())
 	stats.RequestCount++
-	stats.RunningMovingAverage = ((float64(stats.RequestCount-1) * stats.RunningMovingAverage) + reqns) / float64(stats.RequestCount)
+	stats.MovingAverage = ((float64(stats.RequestCount-1) * stats.MovingAverage) + reqns) / float64(stats.RequestCount)
 }

@@ -121,3 +121,45 @@ func TestSendOnNATSReceiveOnTopicMQMD(t *testing.T) {
 	require.Equal(t, int64(0), connStats.Disconnects)
 	require.True(t, connStats.Connected)
 }
+
+func TestSimpleSendOnNatsReceiveOnTopicWithTLS(t *testing.T) {
+	var topicObject ibmmq.MQObject
+
+	subject := "test"
+	topic := "dev/"
+	msg := "hello world"
+
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "NATS2Topic",
+			Subject:        subject,
+			Topic:          topic,
+			ExcludeHeaders: true,
+		},
+	}
+
+	tbs, err := StartTLSTestEnvironment(connect)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	mqsd := ibmmq.NewMQSD()
+	mqsd.Options = ibmmq.MQSO_CREATE | ibmmq.MQSO_NON_DURABLE | ibmmq.MQSO_MANAGED
+	mqsd.ObjectString = topic
+	sub, err := tbs.QMgr.Sub(mqsd, &topicObject)
+	require.NoError(t, err)
+	defer sub.Close(0)
+
+	err = tbs.NC.Publish("test", []byte(msg))
+	require.NoError(t, err)
+
+	mqmd := ibmmq.NewMQMD()
+	gmo := ibmmq.NewMQGMO()
+	gmo.Options = ibmmq.MQGMO_NO_SYNCPOINT
+	gmo.Options |= ibmmq.MQGMO_WAIT
+	gmo.WaitInterval = 3 * 1000 // The WaitInterval is in milliseconds
+	buffer := make([]byte, 1024)
+
+	datalen, err := topicObject.Get(mqmd, gmo, buffer)
+	require.NoError(t, err)
+	require.Equal(t, msg, string(buffer[:datalen]))
+}
