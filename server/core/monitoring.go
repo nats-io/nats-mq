@@ -213,7 +213,9 @@ func (bridge *BridgeServer) stats() BridgeStats {
 	stats.ServerTime = now.Unix()
 
 	for _, connector := range bridge.connectors {
-		stats.Connections = append(stats.Connections, connector.Stats())
+		cstats := connector.Stats()
+		cstats.UpdateQuintiles()
+		stats.Connections = append(stats.Connections, cstats)
 	}
 
 	stats.HTTPRequests = map[string]int64{}
