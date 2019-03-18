@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.0.0 // indirect
 	github.com/hashicorp/go-msgpack v0.5.3 // indirect
 	github.com/hashicorp/raft v1.0.0 // indirect
-	github.com/ibm-messaging/mq-golang v3.3.4+incompatible
+	github.com/ibm-messaging/mq-golang v0.0.0-20190312163150-7486f4a0b635
 	github.com/lib/pq v1.0.0 // indirect
 	github.com/nats-io/gnatsd v1.4.1
 	github.com/nats-io/go-nats v1.7.2
@@ -26,5 +26,3 @@ require (
 	golang.org/x/sys v0.0.0-20190302025703-b6889370fb10 // indirect
 	google.golang.org/appengine v1.3.0 // indirect
 )
-
-replace github.com/ibm-messaging/mq-golang => ../mq-golang

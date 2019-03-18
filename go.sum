@@ -21,10 +21,13 @@ github.com/hashicorp/golang-lru v0.5.0 h1:CL2msUPvZTLb5O648aiLNJw3hnBxN2+1Jq8rCO
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/raft v1.0.0 h1:htBVktAOtGs4Le5Z7K8SF5H2+oWsQFYVmOgH5loro7Y=
 github.com/hashicorp/raft v1.0.0/go.mod h1:DVSAWItjLjTOkVbSpWQ0j0kUADIvDaCtBxIcbNAQLkI=
+github.com/ibm-messaging/mq-golang v0.0.0-20190312163150-7486f4a0b635 h1:dEQMrZ7tD2cj1h7QsvPB41ww6KRnlnfPyJ1AFx4H8UY=
+github.com/ibm-messaging/mq-golang v0.0.0-20190312163150-7486f4a0b635/go.mod h1:qjsZDb7m1oKnbPeDma2JVJTKgyCA91I4bcJ1qHY+gcA=
 github.com/ibm-messaging/mq-golang v3.0.0+incompatible h1:Yc3c8emAyveT54uNDRMkgvS+EBAHeLNWHkc3hk5x+IY=
 github.com/ibm-messaging/mq-golang v3.0.0+incompatible h1:sA691LAlnWfnVEYOYZ16d4N58PROQli0bji0a5An+9g=
 github.com/ibm-messaging/mq-golang v3.0.0+incompatible/go.mod h1:3mrTfZjGOPvDImD64g9DXJHAXonfGJZWUAYPjVvdnLo=
 github.com/ibm-messaging/mq-golang v3.0.0+incompatible/go.mod h1:qjsZDb7m1oKnbPeDma2JVJTKgyCA91I4bcJ1qHY+gcA=
+github.com/ibm-messaging/mq-golang v3.3.4+incompatible/go.mod h1:qjsZDb7m1oKnbPeDma2JVJTKgyCA91I4bcJ1qHY+gcA=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/lib/pq v1.0.0 h1:X5PMW56eZitiTeO7tKzZxFCSpbFZJtkMMooicw2us9A=
