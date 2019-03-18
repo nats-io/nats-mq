@@ -98,13 +98,13 @@ func ConnectToNATSWithConfig(config conf.NATSConfig) (*nats.Conn, error) {
 			log.Printf("known servers: %v\n", nc.Servers())
 		}),
 		nats.DisconnectHandler(func(nc *nats.Conn) {
-			log.Printf("nats connection disconnected...")
+			log.Printf("nats connection disconnected")
 		}),
 		nats.ReconnectHandler(func(nc *nats.Conn) {
-			log.Printf("nats connection reconnected...")
+			log.Printf("nats connection reconnected")
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
-			log.Printf("nats connection closed...")
+			log.Printf("nats connection closed")
 		}),
 	}
 

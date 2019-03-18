@@ -145,7 +145,7 @@ func (bridge *BridgeServer) Stop() {
 	bridge.Lock()
 	defer bridge.Unlock()
 
-	bridge.logger.Noticef("stopping bridge...")
+	bridge.logger.Noticef("stopping bridge")
 
 	bridge.running = false
 
@@ -255,7 +255,7 @@ func (bridge *BridgeServer) RegisterReplyInfo(desc string, config conf.Connector
 }
 
 func (bridge *BridgeServer) connectToNATS() error {
-	bridge.logger.Noticef("connecting to NATS core...")
+	bridge.logger.Noticef("connecting to NATS core")
 
 	config := bridge.config.NATS
 	options := []nats.Option{nats.MaxReconnects(config.MaxReconnects),
@@ -272,14 +272,14 @@ func (bridge *BridgeServer) connectToNATS() error {
 			if !bridge.running { // skip the lock, worst case we print something extra
 				return
 			}
-			bridge.logger.Debugf("nats connection disconnected...")
+			bridge.logger.Debugf("nats connection disconnected")
 		}),
 		nats.ReconnectHandler(func(nc *nats.Conn) {
-			bridge.logger.Debugf("nats connection reconnected...")
+			bridge.logger.Debugf("nats connection reconnected")
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
 			if bridge.running {
-				bridge.logger.Errorf("nats connection closed, shutting down bridge...")
+				bridge.logger.Errorf("nats connection closed, shutting down bridge")
 				bridge.Lock()
 				go bridge.Stop()
 				bridge.Unlock()
@@ -308,7 +308,13 @@ func (bridge *BridgeServer) connectToNATS() error {
 }
 
 func (bridge *BridgeServer) connectToSTAN() error {
-	bridge.logger.Noticef("connecting to NATS streaming...")
+
+	if bridge.config.STAN.ClusterID == "" {
+		bridge.logger.Noticef("skipping NATS streaming connection, not configured")
+		return nil
+	}
+
+	bridge.logger.Noticef("connecting to NATS streaming")
 	config := bridge.config.STAN
 
 	sc, err := stan.Connect(config.ClusterID, config.ClientID,
