@@ -4,9 +4,11 @@ Simple bridge between NATS streaming and MQ Series
 
 ## Notes/Caveats
 
+* This bridge depends on `github.com/ibm-messaging/mq-golang` which uses CGO to access the MQI libraries. 
 * Request/reply with queues is supported but reply-to topics are not.
 * Request/reply with NATS streaming requires that ExcludeHeaders be configured to False, the reply-to channel is in the header. Clients need
 to use the BridgeMessage class to wrap messages on the streaming side.
+* For testing we embed the nats-streaming-server which brings in a fair number of dependencies. The bridge executable only requires the nats and streaming clients as well as the go mq-series library.
 
 ## Developing
 
