@@ -17,7 +17,7 @@ func TestSimpleSendOnStanReceiveOnTopic(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Topic",
 			Channel:        channel,
 			Topic:          topic,
@@ -69,7 +69,7 @@ func TestSendOnStanReceiveOnTopicMQMD(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Topic",
 			Channel:        channel,
 			Topic:          topic,
@@ -127,7 +127,7 @@ func TestSimpleSendOnStanReceiveOnTopicTLS(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Topic",
 			Channel:        channel,
 			Topic:          topic,
@@ -168,7 +168,7 @@ func TestTopicStartAtPosition(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:            "Stan2Topic",
 			Channel:         channel,
 			Topic:           topic,
@@ -220,7 +220,7 @@ func TestTopicDeliverLatest(t *testing.T) {
 	topic := "dev/"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:            "Stan2Topic",
 			Channel:         channel,
 			Topic:           topic,
@@ -306,7 +306,7 @@ func TestTopicStartAtTime(t *testing.T) {
 	time.Sleep(2 * time.Second) // move the time along
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Topic",
 			Channel:        channel,
 			Topic:          topic,
@@ -356,7 +356,7 @@ func TestTopicDurableSubscriber(t *testing.T) {
 	buffer := make([]byte, 1024)
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Topic",
 			Channel:        channel,
 			Topic:          topic,

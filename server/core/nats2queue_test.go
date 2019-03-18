@@ -17,7 +17,7 @@ func TestSimpleSendOnNatsReceiveOnQueue(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "NATS2Queue",
 			Subject:        subject,
 			Queue:          queue,
@@ -56,7 +56,7 @@ func TestSendOnNATSReceiveOnQueueMQMD(t *testing.T) {
 	corr := bytes.Repeat([]byte{1}, int(ibmmq.MQ_CORREL_ID_LENGTH))
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "NATS2Queue",
 			Subject:        subject,
 			Queue:          queue,
@@ -103,7 +103,7 @@ func TestSimpleSendOnNatsReceiveOnQueueWithTLS(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "NATS2Queue",
 			Subject:        subject,
 			Queue:          queue,

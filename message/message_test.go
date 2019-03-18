@@ -30,6 +30,11 @@ func TestBadDecode(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestNilDecode(t *testing.T) {
+	_, err := DecodeBridgeMessage(nil)
+	require.Error(t, err)
+}
+
 func TestPropertyTypes(t *testing.T) {
 	msg := NewBridgeMessage(nil)
 
@@ -211,8 +216,74 @@ func TestMismatchProperty(t *testing.T) {
 	require.False(t, ok)
 	require.Equal(t, actual, int32(0))
 }
+
 func TestUnknownType(t *testing.T) {
 	msg := NewBridgeMessage(nil)
 	err := msg.SetProperty("test", []string{"hello", "world"})
 	require.Error(t, err)
+}
+
+func TestUnknownTypeOnGet(t *testing.T) {
+	msg := NewBridgeMessage(nil)
+	msg.Properties["test"] = Property{
+		Type:  -1,
+		Value: []int{1, 2, 3},
+	}
+	actual, ok := msg.GetTypedProperty("test")
+	require.False(t, ok)
+	require.Nil(t, actual)
+}
+
+func TestBadPropertyValues(t *testing.T) {
+	msg := NewBridgeMessage(nil)
+
+	msg.Properties["test"] = Property{
+		Type:  PropertyTypeString,
+		Value: -1,
+	}
+
+	_, ok := msg.GetStringProperty("test")
+	require.False(t, ok)
+
+	msg.Properties["test"] = Property{
+		Type:  PropertyTypeInt8,
+		Value: "hello",
+	}
+	_, ok = msg.GetInt8Property("test")
+	require.False(t, ok)
+
+	msg.Properties["test"] = Property{
+		Type:  PropertyTypeInt16,
+		Value: "hello",
+	}
+	_, ok = msg.GetInt16Property("test")
+	require.False(t, ok)
+
+	msg.Properties["test"] = Property{
+		Type:  PropertyTypeInt32,
+		Value: "hello",
+	}
+	_, ok = msg.GetInt32Property("test")
+	require.False(t, ok)
+
+	msg.Properties["test"] = Property{
+		Type:  PropertyTypeInt64,
+		Value: "hello",
+	}
+	_, ok = msg.GetInt64Property("test")
+	require.False(t, ok)
+
+	msg.Properties["test"] = Property{
+		Type:  PropertyTypeFloat32,
+		Value: "hello",
+	}
+	_, ok = msg.GetFloat32Property("test")
+	require.False(t, ok)
+
+	msg.Properties["test"] = Property{
+		Type:  PropertyTypeFloat64,
+		Value: "hello",
+	}
+	_, ok = msg.GetFloat64Property("test")
+	require.False(t, ok)
 }

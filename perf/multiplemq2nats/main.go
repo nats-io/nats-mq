@@ -21,19 +21,19 @@ func main() {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2NATS",
 			Subject:        "test1",
 			Queue:          "DEV.QUEUE.1",
 			ExcludeHeaders: true,
 		},
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2NATS",
 			Subject:        "test2",
 			Queue:          "DEV.QUEUE.2",
 			ExcludeHeaders: true,
 		},
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2NATS",
 			Subject:        "test3",
 			Queue:          "DEV.QUEUE.3",

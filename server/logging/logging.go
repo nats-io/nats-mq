@@ -1,7 +1,5 @@
 package logging
 
-import ()
-
 // Config defines logging flags for the NATS logger
 type Config struct {
 	Time   bool

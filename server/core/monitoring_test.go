@@ -19,7 +19,7 @@ func TestMonitoringPages(t *testing.T) {
 	queue := "DEV.QUEUE.1"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "NATS2Queue",
 			Subject:        subject,
 			Queue:          queue,
@@ -79,7 +79,7 @@ func TestHealthzWithTLS(t *testing.T) {
 	queue := "DEV.QUEUE.1"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "NATS2Queue",
 			Subject:        subject,
 			Queue:          queue,

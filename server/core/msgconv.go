@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"github.com/nats-io/nats-mq/message"
 )
@@ -145,7 +146,7 @@ func (bridge *BridgeServer) mapPropertiesToHandle(msg *message.BridgeMessage, qm
 		value, ok := msg.GetTypedProperty(name)
 
 		if !ok {
-			return handle, fmt.Errorf("encountered broken message property %s", name)
+			return handle, fmt.Errorf("broken message property %s", name)
 		}
 
 		err = handle.SetMP(smpo, name, pd, value)

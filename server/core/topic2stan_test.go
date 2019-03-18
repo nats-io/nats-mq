@@ -17,7 +17,7 @@ func TestSimpleSendOnTopicReceiveOnStan(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Topic2Stan",
 			Channel:        channel,
 			Topic:          topic,
@@ -66,7 +66,7 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Topic2Stan",
 			Channel:        channel,
 			Topic:          topic,
@@ -124,7 +124,7 @@ func TestSimpleSendOnTopicReceiveOnStanWithTLS(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Topic2Stan",
 			Channel:        channel,
 			Topic:          topic,

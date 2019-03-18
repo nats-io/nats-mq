@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	nats "github.com/nats-io/go-nats"
 	stan "github.com/nats-io/go-nats-streaming"

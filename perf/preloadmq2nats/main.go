@@ -22,7 +22,7 @@ func main() {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2NATS",
 			Subject:        subject,
 			Queue:          queue,

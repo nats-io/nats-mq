@@ -2,8 +2,9 @@ package message
 
 import (
 	"fmt"
-	"github.com/ugorji/go/codec"
 	"reflect"
+
+	"github.com/ugorji/go/codec"
 )
 
 var mh codec.MsgpackHandle
@@ -226,7 +227,12 @@ func (msg *BridgeMessage) GetStringProperty(name string) (string, bool) {
 	prop, ok := msg.Properties[name]
 
 	if ok && prop.Type == PropertyTypeString {
-		return prop.Value.(string), true
+		switch prop.Value.(type) {
+		case string:
+			return prop.Value.(string), true
+		default:
+			return "", false
+		}
 	}
 
 	return "", false

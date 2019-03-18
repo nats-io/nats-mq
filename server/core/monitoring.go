@@ -127,7 +127,7 @@ func (bridge *BridgeServer) startMonitoring() error {
 // expects the lock to be held
 func (bridge *BridgeServer) StopMonitoring() error {
 	bridge.logger.Tracef("stopping monitoring")
-	if bridge.httpHandler != nil {
+	if bridge.monitoringServer != nil && bridge.httpHandler != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
 		defer cancel()
 

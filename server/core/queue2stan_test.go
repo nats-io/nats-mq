@@ -18,7 +18,7 @@ func TestSimpleSendOnQueueReceiveOnStan(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2Stan",
 			Channel:        channel,
 			Queue:          queue,
@@ -69,7 +69,7 @@ func TestSendOnQueueReceiveOnStanMQMD(t *testing.T) {
 	corr := bytes.Repeat([]byte{1}, int(ibmmq.MQ_CORREL_ID_LENGTH))
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2Stan",
 			Channel:        channel,
 			Queue:          queue,
@@ -131,7 +131,7 @@ func TestSimpleSendOnQueueReceiveOnStanWithTLS(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2Stan",
 			Channel:        channel,
 			Queue:          queue,

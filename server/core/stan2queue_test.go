@@ -17,7 +17,7 @@ func TestSimpleSendOnStanReceiveOnQueue(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Queue",
 			Channel:        channel,
 			Queue:          queue,
@@ -56,7 +56,7 @@ func TestSendOnStanReceiveOnQueueMQMD(t *testing.T) {
 	corr := bytes.Repeat([]byte{1}, int(ibmmq.MQ_CORREL_ID_LENGTH))
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Queue",
 			Channel:        channel,
 			Queue:          queue,
@@ -109,7 +109,7 @@ func TestSimpleSendOnStanReceiveOnQueueWithTLS(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Queue",
 			Channel:        channel,
 			Queue:          queue,
@@ -135,7 +135,7 @@ func TestQueueStartAtPosition(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:            "Stan2Queue",
 			Channel:         channel,
 			Queue:           queue,
@@ -174,7 +174,7 @@ func TestQueueDeliverLatest(t *testing.T) {
 	msg := "hello world"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:            "Stan2Queue",
 			Channel:         channel,
 			Queue:           queue,
@@ -236,7 +236,7 @@ func TestQueueStartAtTime(t *testing.T) {
 	time.Sleep(2 * time.Second) // move the time along
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Queue",
 			Channel:        channel,
 			Queue:          queue,
@@ -272,7 +272,7 @@ func TestQueueDurableSubscriber(t *testing.T) {
 	defer tbs.Close()
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Queue",
 			Channel:        channel,
 			DurableName:    "test_durable",

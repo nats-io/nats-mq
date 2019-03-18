@@ -2,9 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/nats-io/nats-mq/message"
 	"log"
 	"time"
+
+	"github.com/nats-io/nats-mq/message"
 )
 
 var iterations int

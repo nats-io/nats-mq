@@ -21,13 +21,13 @@ func TestSendReceiveOnNATSThruQueue(t *testing.T) {
 	response := "goodbye"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "NATS2Queue",
 			Subject:        subject,
 			Queue:          queue,
 			ExcludeHeaders: true,
 		},
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2NATS",
 			Subject:        replyToSubject,
 			Queue:          replyQueue,
@@ -76,13 +76,13 @@ func TestSendReceiveOnMQThruNATS(t *testing.T) {
 	response := "goodbye"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2NATS",
 			Subject:        subject,
 			Queue:          queue,
 			ExcludeHeaders: true,
 		},
-		conf.ConnectorConfig{
+		{
 			Type:           "NATS2Queue",
 			Subject:        replyToSubject,
 			Queue:          replyQueue,
@@ -120,13 +120,13 @@ func TestSendReceiveOnMQThruNATSHeaderInNotOut(t *testing.T) {
 	response := "goodbye"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2NATS",
 			Subject:        subject,
 			Queue:          queue,
 			ExcludeHeaders: false,
 		},
-		conf.ConnectorConfig{
+		{
 			Type:           "NATS2Queue",
 			Subject:        replyToSubject,
 			Queue:          replyQueue,
@@ -166,13 +166,13 @@ func TestSendReceiveOnStanThruQueue(t *testing.T) {
 	response := "goodbye"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Queue",
 			Channel:        channel,
 			Queue:          queue,
 			ExcludeHeaders: false,
 		},
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2Stan",
 			Channel:        replyToChannel,
 			Queue:          replyQueue,
@@ -228,13 +228,13 @@ func TestSendReceiveOnMQThruStan(t *testing.T) {
 	response := "goodbye"
 
 	connect := []conf.ConnectorConfig{
-		conf.ConnectorConfig{
+		{
 			Type:           "Queue2Stan",
 			Channel:        channel,
 			Queue:          queue,
 			ExcludeHeaders: false,
 		},
-		conf.ConnectorConfig{
+		{
 			Type:           "Stan2Queue",
 			Channel:        replyToChannel,
 			Queue:          replyQueue,

@@ -3,9 +3,6 @@ package core
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ibm-messaging/mq-golang/ibmmq"
-	"github.com/nats-io/nats-mq/server/conf"
-	"github.com/nats-io/nuid"
 	"log"
 	"os"
 	"os/exec"
@@ -13,11 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ibm-messaging/mq-golang/ibmmq"
 	gnatsserver "github.com/nats-io/gnatsd/server"
 	gnatsd "github.com/nats-io/gnatsd/test"
 	nats "github.com/nats-io/go-nats"
 	stan "github.com/nats-io/go-nats-streaming"
+	"github.com/nats-io/nats-mq/server/conf"
 	nss "github.com/nats-io/nats-streaming-server/server"
+	"github.com/nats-io/nuid"
 )
 
 // TestEnv encapsulate a bridge test environment

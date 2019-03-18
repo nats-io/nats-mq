@@ -5,6 +5,8 @@ package core
 import (
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func approx(x, y float64) bool {
@@ -16,28 +18,28 @@ func TestHistogram(t *testing.T) {
 	for _, val := range testData {
 		h.Add(float64(val))
 	}
-	if h.Count() != 14999 {
-		t.Errorf("Expected h.Count() to be 14999, got %v", h.Count())
-	}
 
-	if firstQ := h.Quantile(0.25); !approx(firstQ, 14) {
-		t.Errorf("Expected 25th percentile to be %v, got %v", 14, firstQ)
-	}
-	if median := h.Quantile(0.5); !approx(median, 18) {
-		t.Errorf("Expected 50th percentile to be %v, got %v", 18, median)
-	}
-	if thirdQ := h.Quantile(0.75); !approx(thirdQ, 22) {
-		t.Errorf("Expected 75th percentile to be %v, got %v", 22, thirdQ)
-	}
-	if cdf := h.CDF(18); !approx(cdf, 0.5) {
-		t.Errorf("Expected CDF(median) to be %v, got %v", 0.5, cdf)
-	}
-	if cdf := h.CDF(22); !approx(cdf, 0.75) {
-		t.Errorf("Expected CDF(3rd quartile) to be %v, got %v", 0.75, cdf)
-	}
+	firstQ := h.Quantile(0.25)
+	median := h.Quantile(0.5)
+	thirdQ := h.Quantile(0.75)
+
+	require.Equal(t, float64(14999), h.Count())
+	require.True(t, approx(firstQ, 14))
+	require.True(t, approx(median, 18))
+	require.True(t, approx(thirdQ, 22))
+
+	require.True(t, approx(h.Mean(), 20.7))
 
 	h.Scale(0.5)
-	if median := h.Quantile(0.5); !approx(median, 9) {
-		t.Errorf("Expected scaled 50th percentile to be %v, got %v", 9, median)
+	median = h.Quantile(0.5)
+	require.True(t, approx(median, 9))
+}
+
+func TestHistogramTrim(t *testing.T) {
+	h := NewHistogram(10)
+	for _, val := range testData {
+		h.Add(float64(val))
 	}
+
+	require.Equal(t, 10, len(h.Bins))
 }

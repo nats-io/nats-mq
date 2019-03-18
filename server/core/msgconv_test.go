@@ -2,11 +2,11 @@ package core
 
 import (
 	"bytes"
-	"github.com/ibm-messaging/mq-golang/ibmmq"
-	"github.com/nats-io/nats-mq/message"
 	"testing"
 	"time"
 
+	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nats-mq/message"
 	"github.com/stretchr/testify/require"
 )
 

@@ -4,29 +4,10 @@ package core
 // Updated to be json friendly
 // Histogram based on https://www.vividcortex.com/blog/2013/07/08/streaming-approximate-histograms/
 
-import (
-	"fmt"
-	"sort"
-)
-
 // Bin holds a float64 value and count
 type Bin struct {
 	Value float64 `json:"v"`
 	Count float64 `json:"c"`
-}
-
-type sortByValue []Bin
-
-func (s sortByValue) Len() int {
-	return len(s)
-}
-
-func (s sortByValue) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s sortByValue) Less(i, j int) bool {
-	return s[i].Value < s[j].Value
 }
 
 // Histogram stores N bins using the streaming approximate histogram approach
@@ -97,19 +78,6 @@ func (h *Histogram) Quantile(q float64) float64 {
 	return -1
 }
 
-// CDF returns the value of the cumulative distribution function
-// at x
-func (h *Histogram) CDF(x float64) float64 {
-	count := 0.0
-	for i := range h.Bins {
-		if h.Bins[i].Value <= x {
-			count += float64(h.Bins[i].Count)
-		}
-	}
-
-	return count / float64(h.Total)
-}
-
 // Mean returns the sample mean of the distribution
 func (h *Histogram) Mean() float64 {
 	if h.Total == 0 {
@@ -125,33 +93,9 @@ func (h *Histogram) Mean() float64 {
 	return sum / float64(h.Total)
 }
 
-// Variance returns the variance of the distribution
-func (h *Histogram) Variance() float64 {
-	if h.Total == 0 {
-		return 0
-	}
-
-	sum := 0.0
-	mean := h.Mean()
-
-	for i := range h.Bins {
-		sum += (h.Bins[i].Count * (h.Bins[i].Value - mean) * (h.Bins[i].Value - mean))
-	}
-
-	return sum / float64(h.Total)
-}
-
 // Count returns the total number of entries in the histogram
 func (h *Histogram) Count() float64 {
 	return float64(h.Total)
-}
-
-// MergeWith adds all of the bins from another histogram and then combines
-func (h *Histogram) MergeWith(other *Histogram) {
-	h.Total += other.Total
-	h.Bins = append(h.Bins, other.Bins...)
-	sort.Sort(sortByValue(h.Bins))
-	h.trim()
 }
 
 // trim merges adjacent bins to decrease the bin count to the maximum value
@@ -185,35 +129,4 @@ func (h *Histogram) trim() {
 		tail := append([]Bin{mergedbin}, h.Bins[minDeltaIndex+1:]...)
 		h.Bins = append(head, tail...)
 	}
-}
-
-// String returns a string reprentation of the histogram,
-// which is useful for printing to a terminal.
-func (h *Histogram) String() string {
-	str := fmt.Sprintf("Total Entries: %d\n", h.Total)
-
-	scale := 1.0
-	max := 0.0
-	for _, b := range h.Bins {
-		if b.Count > max {
-			max = b.Count
-		}
-	}
-
-	if max > 75.0 {
-		scale = max / 75.0
-	}
-
-	for _, b := range h.Bins {
-		bar := ""
-
-		barLength := int(b.Count * scale)
-		for j := 0; j < barLength; j++ {
-			bar += "*"
-		}
-
-		str += fmt.Sprintf("%.2f:\t%s\n", b.Value, bar)
-	}
-
-	return str
 }
