@@ -1,12 +1,10 @@
 package core
 
 import (
-	"log"
-	"strings"
+	"fmt"
 	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	nats "github.com/nats-io/go-nats"
 	stan "github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/server/conf"
 )
@@ -66,59 +64,31 @@ func ConnectToQueueManager(mqconfig conf.MQConfig) (*ibmmq.MQQueueManager, error
 	return &qMgr, nil
 }
 
-// ConnectToSTANWithConfig utility to connect to a streaming server from a config
-// unused by the bridge
-func ConnectToSTANWithConfig(config conf.NATSStreamingConfig, nc *nats.Conn) (stan.Conn, error) {
-	sc, err := stan.Connect(config.ClusterID, config.ClientID,
-		stan.NatsConn(nc),
-		stan.PubAckWait(time.Duration(config.PubAckWait)*time.Millisecond),
-		stan.MaxPubAcksInflight(config.MaxPubAcksInflight),
-		stan.ConnectWait(time.Duration(config.ConnectWait)*time.Millisecond),
-		func(o *stan.Options) error {
-			o.DiscoverPrefix = config.DiscoverPrefix
-			return nil
-		})
-	if err != nil {
-		return nil, err
-	}
-	return sc, nil
-}
-
-// ConnectToNATSWithConfig utility to connect to nats from a config
-// unused by the bridge, which uses its own logger, this method uses "log"
-func ConnectToNATSWithConfig(config conf.NATSConfig) (*nats.Conn, error) {
-	options := []nats.Option{nats.MaxReconnects(config.MaxReconnects),
-		nats.ReconnectWait(time.Duration(config.ReconnectWait) * time.Millisecond),
-		nats.Timeout(time.Duration(config.ConnectTimeout) * time.Millisecond),
-		nats.ErrorHandler(func(nc *nats.Conn, sub *nats.Subscription, err error) {
-			log.Printf("nats error %s", err.Error())
-		}),
-		nats.DiscoveredServersHandler(func(nc *nats.Conn) {
-			log.Printf("discovered servers: %v\n", nc.DiscoveredServers())
-			log.Printf("known servers: %v\n", nc.Servers())
-		}),
-		nats.DisconnectHandler(func(nc *nats.Conn) {
-			log.Printf("nats connection disconnected")
-		}),
-		nats.ReconnectHandler(func(nc *nats.Conn) {
-			log.Printf("nats connection reconnected")
-		}),
-		nats.ClosedHandler(func(nc *nats.Conn) {
-			log.Printf("nats connection closed")
-		}),
+// SubscribeToChannel uses the bridges STAN connection to subscribe based on the config
+// The start position/time and durable name are optional
+func (bridge *BridgeServer) SubscribeToChannel(config conf.ConnectorConfig, handler stan.MsgHandler) (stan.Subscription, error) {
+	if bridge.Stan() == nil {
+		return nil, fmt.Errorf("bridge not configured to use NATS streaming")
 	}
 
-	if config.TLS.Root != "" {
-		options = append(options, nats.RootCAs(config.TLS.Root))
+	options := []stan.SubscriptionOption{}
+
+	if config.DurableName != "" {
+		options = append(options, stan.DurableName(config.DurableName))
 	}
 
-	if config.TLS.Cert != "" {
-		options = append(options, nats.ClientCert(config.TLS.Cert, config.TLS.Key))
+	if config.StartAtTime != 0 {
+		t := time.Unix(config.StartAtTime, 0)
+		options = append(options, stan.StartAtTime(t))
+	} else if config.StartAtSequence == -1 {
+		options = append(options, stan.StartWithLastReceived())
+	} else if config.StartAtSequence > 0 {
+		options = append(options, stan.StartAtSequence(uint64(config.StartAtSequence)))
+	} else {
+		options = append(options, stan.DeliverAllAvailable())
 	}
 
-	nc, err := nats.Connect(strings.Join(config.Servers, ","),
-		options...,
-	)
+	sub, err := bridge.Stan().Subscribe(config.Channel, handler, options...)
 
-	return nc, err
+	return sub, err
 }

@@ -90,7 +90,7 @@ func (mq *Stan2TopicConnector) Start() error {
 	mq.topic = &qObject
 	mq.bridge.Logger().Tracef("opened %s", topicName)
 
-	sub, err := mq.bridge.Stan().Subscribe(mq.config.Channel, mq.messageHandler)
+	sub, err := mq.bridge.SubscribeToChannel(mq.config, mq.messageHandler)
 
 	if err != nil {
 		return err
@@ -157,7 +157,7 @@ func (mq *Stan2TopicConnector) Shutdown() error {
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
-	if mq.sub != nil {
+	if mq.sub != nil && mq.config.DurableName == "" { // Don't unsubscribe from durables
 		mq.sub.Unsubscribe()
 		mq.sub = nil
 	}

@@ -160,3 +160,242 @@ func TestSimpleSendOnStanReceiveOnTopicTLS(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, msg, string(buffer[:datalen]))
 }
+
+func TestTopicStartAtPosition(t *testing.T) {
+	var topicObject ibmmq.MQObject
+	channel := "test"
+	topic := "dev/"
+	msg := "hello world"
+
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:            "Stan2Topic",
+			Channel:         channel,
+			Topic:           topic,
+			ExcludeHeaders:  true,
+			StartAtSequence: 2,
+		},
+	}
+
+	tbs, err := StartTestEnvironmentInfrastructure(false)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	mqsd := ibmmq.NewMQSD()
+	mqsd.Options = ibmmq.MQSO_CREATE | ibmmq.MQSO_NON_DURABLE | ibmmq.MQSO_MANAGED
+	mqsd.ObjectString = topic
+	sub, err := tbs.QMgr.Sub(mqsd, &topicObject)
+	require.NoError(t, err)
+	defer sub.Close(0)
+
+	gmo := ibmmq.NewMQGMO()
+	gmo.Options = ibmmq.MQGMO_NO_SYNCPOINT
+	gmo.Options |= ibmmq.MQGMO_WAIT
+	gmo.WaitInterval = 3 * 1000 // The WaitInterval is in milliseconds
+	buffer := make([]byte, 1024)
+
+	// Send 2 messages, should only get 2nd
+	err = tbs.SC.Publish("test", []byte(msg))
+	require.NoError(t, err)
+	err = tbs.SC.Publish("test", []byte(msg))
+	require.NoError(t, err)
+
+	err = tbs.StartBridge(connect, false)
+	require.NoError(t, err)
+
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.NoError(t, err)
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.Error(t, err)
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+}
+
+func TestTopicDeliverLatest(t *testing.T) {
+	var topicObject ibmmq.MQObject
+	channel := "test"
+	topic := "dev/"
+
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:            "Stan2Topic",
+			Channel:         channel,
+			Topic:           topic,
+			ExcludeHeaders:  true,
+			StartAtSequence: -1,
+		},
+	}
+
+	tbs, err := StartTestEnvironmentInfrastructure(false)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	mqsd := ibmmq.NewMQSD()
+	mqsd.Options = ibmmq.MQSO_CREATE | ibmmq.MQSO_NON_DURABLE | ibmmq.MQSO_MANAGED
+	mqsd.ObjectString = topic
+	sub, err := tbs.QMgr.Sub(mqsd, &topicObject)
+	require.NoError(t, err)
+	defer sub.Close(0)
+
+	gmo := ibmmq.NewMQGMO()
+	gmo.Options = ibmmq.MQGMO_NO_SYNCPOINT
+	gmo.Options |= ibmmq.MQGMO_WAIT
+	gmo.WaitInterval = 4 * 1000 // The WaitInterval is in milliseconds
+	buffer := make([]byte, 1024)
+
+	// Send 2 messages, should only get 2nd
+	err = tbs.SC.Publish("test", []byte("one"))
+	require.NoError(t, err)
+	err = tbs.SC.Publish("test", []byte("two"))
+	require.NoError(t, err)
+
+	err = tbs.StartBridge(connect, false)
+	require.NoError(t, err)
+
+	// Should get the last one we sent before bridge started
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.NoError(t, err)
+
+	err = tbs.SC.Publish("test", []byte("three"))
+	require.NoError(t, err)
+
+	// Should receive 1 message we just sent
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.NoError(t, err)
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.Error(t, err)
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(2), connStats.MessagesIn)
+	require.Equal(t, int64(2), connStats.MessagesOut)
+}
+
+func TestTopicStartAtTime(t *testing.T) {
+	var topicObject ibmmq.MQObject
+	channel := "test"
+	topic := "dev/"
+	msg := "hello world"
+
+	tbs, err := StartTestEnvironmentInfrastructure(false)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	mqsd := ibmmq.NewMQSD()
+	mqsd.Options = ibmmq.MQSO_CREATE | ibmmq.MQSO_NON_DURABLE | ibmmq.MQSO_MANAGED
+	mqsd.ObjectString = topic
+	sub, err := tbs.QMgr.Sub(mqsd, &topicObject)
+	require.NoError(t, err)
+	defer sub.Close(0)
+
+	gmo := ibmmq.NewMQGMO()
+	gmo.Options = ibmmq.MQGMO_NO_SYNCPOINT
+	gmo.Options |= ibmmq.MQGMO_WAIT
+	gmo.WaitInterval = 3 * 1000 // The WaitInterval is in milliseconds
+	buffer := make([]byte, 1024)
+
+	// Send 2 messages, should only get 2nd
+	err = tbs.SC.Publish("test", []byte(msg))
+	require.NoError(t, err)
+	err = tbs.SC.Publish("test", []byte(msg))
+	require.NoError(t, err)
+
+	time.Sleep(2 * time.Second) // move the time along
+
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "Stan2Topic",
+			Channel:        channel,
+			Topic:          topic,
+			ExcludeHeaders: true,
+			StartAtTime:    time.Now().Unix(),
+		},
+	}
+
+	err = tbs.StartBridge(connect, false)
+	require.NoError(t, err)
+
+	err = tbs.SC.Publish("test", []byte(msg))
+	require.NoError(t, err)
+
+	// Should only get the one we just sent
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.NoError(t, err)
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.Error(t, err)
+
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(1), connStats.MessagesIn)
+	require.Equal(t, int64(1), connStats.MessagesOut)
+}
+
+func TestTopicDurableSubscriber(t *testing.T) {
+	var topicObject ibmmq.MQObject
+	channel := "test"
+	topic := "dev/"
+
+	tbs, err := StartTestEnvironmentInfrastructure(false)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	mqsd := ibmmq.NewMQSD()
+	mqsd.Options = ibmmq.MQSO_CREATE | ibmmq.MQSO_NON_DURABLE | ibmmq.MQSO_MANAGED
+	mqsd.ObjectString = topic
+	sub, err := tbs.QMgr.Sub(mqsd, &topicObject)
+	require.NoError(t, err)
+	defer sub.Close(0)
+
+	gmo := ibmmq.NewMQGMO()
+	gmo.Options = ibmmq.MQGMO_NO_SYNCPOINT
+	gmo.Options |= ibmmq.MQGMO_WAIT
+	gmo.WaitInterval = 3 * 1000 // The WaitInterval is in milliseconds
+	buffer := make([]byte, 1024)
+
+	connect := []conf.ConnectorConfig{
+		conf.ConnectorConfig{
+			Type:           "Stan2Topic",
+			Channel:        channel,
+			Topic:          topic,
+			DurableName:    "test_durable",
+			ExcludeHeaders: true,
+		},
+	}
+
+	err = tbs.StartBridge(connect, false)
+	require.NoError(t, err)
+
+	err = tbs.SC.Publish("test", []byte("one"))
+	require.NoError(t, err)
+
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.NoError(t, err)
+
+	tbs.StopBridge()
+
+	err = tbs.SC.Publish("test", []byte("two"))
+	require.NoError(t, err)
+
+	err = tbs.SC.Publish("test", []byte("three"))
+	require.NoError(t, err)
+
+	err = tbs.StartBridge(connect, false)
+	require.NoError(t, err)
+
+	// Should only get 2 more, we sent 3 but already got 1
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.NoError(t, err)
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.NoError(t, err)
+	_, err = topicObject.Get(ibmmq.NewMQMD(), gmo, buffer)
+	require.Error(t, err)
+
+	// Should have 2 messages since the relaunch
+	stats := tbs.Bridge.SafeStats()
+	connStats := stats.Connections[0]
+	require.Equal(t, int64(2), connStats.MessagesIn)
+	require.Equal(t, int64(2), connStats.MessagesOut)
+}

@@ -17,6 +17,7 @@ type Bridge interface {
 	Logger() logging.Logger
 	RegisterReplyInfo(desc string, config conf.ConnectorConfig)
 
+	SubscribeToChannel(config conf.ConnectorConfig, handler stan.MsgHandler) (stan.Subscription, error)
 	NATSToMQMessage(data []byte, replyTo string, qmgr *ibmmq.MQQueueManager) (*ibmmq.MQMD, ibmmq.MQMessageHandle, []byte, error)
 	MQToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMessageHandle, data []byte, length int, qmgr *ibmmq.MQQueueManager) ([]byte, string, error)
 }

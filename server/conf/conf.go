@@ -124,7 +124,11 @@ type NATSStreamingConfig struct {
 type ConnectorConfig struct {
 	Type string // Can be Queue2NATS or any of the other constants
 
-	Channel string // Used for stan connections
+	Channel         string // Used for stan connections
+	DurableName     string // Optional, used for stan connections
+	StartAtSequence int64  // Start position for stan connection, -1 means StartWithLastReceived, 0 means DeliverAllAvailable (default)
+	StartAtTime     int64  // Start time, as Unix, time takes precedence over sequence
+
 	Subject string // Used for nats connections
 
 	MQ    MQConfig // Connection information, nats connections are shared

@@ -33,6 +33,7 @@ type TestEnv struct {
 
 	natsURL     string
 	clusterName string
+	clientID    string // we keep this so we stay the same on reconnect
 
 	Bridge *BridgeServer
 	Config *conf.BridgeConfig
@@ -125,6 +126,7 @@ func StartTestEnvironmentInfrastructure(useTLS bool) (*TestEnv, error) {
 	}
 
 	tbs.Stan = s
+	tbs.clientID = nuid.Next()
 
 	var nc *nats.Conn
 
@@ -166,7 +168,7 @@ func (tbs *TestEnv) StartBridge(connections []conf.ConnectorConfig, useTLS bool)
 	}
 	config.STAN = conf.NATSStreamingConfig{
 		ClusterID:          tbs.clusterName,
-		ClientID:           nuid.Next(),
+		ClientID:           tbs.clientID,
 		PubAckWait:         5000,
 		DiscoverPrefix:     stan.DefaultDiscoverPrefix,
 		MaxPubAcksInflight: stan.DefaultMaxPubAcksInflight,
@@ -226,6 +228,14 @@ func (tbs *TestEnv) StartBridge(connections []conf.ConnectorConfig, useTLS bool)
 	}
 
 	return nil
+}
+
+// StopBridge stops the bridge
+func (tbs *TestEnv) StopBridge() {
+	if tbs.Bridge != nil {
+		tbs.Bridge.Stop()
+		tbs.Bridge = nil
+	}
 }
 
 // GetQueueManagerName get the queue manager name for the test MQ server
