@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"github.com/nats-io/nats-mq/message"
@@ -10,19 +11,20 @@ import (
 var EmptyHandle ibmmq.MQMessageHandle = ibmmq.MQMessageHandle{}
 
 // Copies the array, empty or not
-func copyByteArray(bytes []byte) []byte {
-	newArray := make([]byte, len(bytes))
-	copy(newArray, bytes)
+func copyByteArray(data []byte) []byte {
+	newArray := make([]byte, len(data))
+	copy(newArray, data)
+	newArray = bytes.Trim(newArray, "\x00")
 	return newArray
 }
 
 // Copies the array if it isn't empty, otherwise returns the default
-func copyByteArrayIfNotEmpty(bytes []byte, def []byte) []byte {
-	if bytes == nil || len(bytes) == 0 {
+func copyByteArrayIfNotEmpty(data []byte, def []byte, size int32) []byte {
+	if data == nil || len(data) == 0 {
 		return def
 	}
-	newArray := make([]byte, len(bytes))
-	copy(newArray, bytes)
+	newArray := bytes.Repeat([]byte{0}, int(size))
+	copy(newArray, data)
 	return newArray
 }
 
@@ -79,17 +81,17 @@ func mapHeaderToMQMD(header *message.BridgeHeader) *ibmmq.MQMD {
 	mqmd.CodedCharSetId = header.CodedCharSetID
 	mqmd.Format = header.Format
 	mqmd.Priority = header.Priority
-	mqmd.MsgId = copyByteArrayIfNotEmpty(header.MsgID, mqmd.MsgId)
-	mqmd.CorrelId = copyByteArrayIfNotEmpty(header.CorrelID, mqmd.CorrelId)
+	mqmd.MsgId = copyByteArrayIfNotEmpty(header.MsgID, mqmd.MsgId, ibmmq.MQ_MSG_ID_LENGTH)
+	mqmd.CorrelId = copyByteArrayIfNotEmpty(header.CorrelID, mqmd.CorrelId, ibmmq.MQ_CORREL_ID_LENGTH)
 	mqmd.ReplyToQ = header.ReplyToQ
 	mqmd.ReplyToQMgr = header.ReplyToQMgr
 	mqmd.UserIdentifier = header.UserIdentifier
-	mqmd.AccountingToken = copyByteArrayIfNotEmpty(header.AccountingToken, mqmd.AccountingToken)
+	mqmd.AccountingToken = copyByteArrayIfNotEmpty(header.AccountingToken, mqmd.AccountingToken, ibmmq.MQ_ACCOUNTING_TOKEN_LENGTH)
 	mqmd.ApplIdentityData = header.ApplIdentityData
 	mqmd.PutApplType = header.PutApplType
 	mqmd.PutApplName = header.PutApplName
 	mqmd.ApplOriginData = header.ApplOriginData
-	mqmd.GroupId = copyByteArrayIfNotEmpty(header.GroupID, mqmd.GroupId)
+	mqmd.GroupId = copyByteArrayIfNotEmpty(header.GroupID, mqmd.GroupId, ibmmq.MQ_GROUP_ID_LENGTH)
 	mqmd.MsgSeqNumber = header.MsgSeqNumber
 	mqmd.Offset = header.Offset
 	mqmd.MsgFlags = header.MsgFlags
@@ -159,6 +161,7 @@ func (bridge *BridgeServer) mapPropertiesToHandle(msg *message.BridgeMessage, qm
 // if the qmgr is nil, the return value is just the message body
 // if the qmgr is not nil the message is encoded as a BridgeMessage
 // The data array is always just bytes from MQ, and is not an encoded BridgeMessage
+// Header fields that are byte arrays are trimmed, "\x00" removed, on conversion to BridgeMessage.Header
 func (bridge *BridgeServer) MQToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMessageHandle, data []byte, length int, qmgr *ibmmq.MQQueueManager) ([]byte, string, error) {
 	replySubject := ""
 	replyChannel := ""
@@ -210,6 +213,7 @@ func (bridge *BridgeServer) MQToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMes
 // if the qmgr is nil, data is considered to just be a message body
 // if the qmgr is not nil the message is treated as an encoded BridgeMessage
 // The returned byte array just bytes from MQ, and is not an encoded BridgeMessage
+// Header fields that are byte arrays are padded, "\x00" added, on conversion from BridgeMessage.Header
 func (bridge *BridgeServer) NATSToMQMessage(data []byte, replyTo string, qmgr *ibmmq.MQQueueManager) (*ibmmq.MQMD, ibmmq.MQMessageHandle, []byte, error) {
 	replyQ := ""
 	replyQMgr := ""

@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/nats-io/nats-mq/message"
 	"testing"
 	"time"
 
@@ -29,7 +31,7 @@ func TestExcludeHeadersIgnoresMQMD(t *testing.T) {
 	require.Equal(t, expected.Format, mqmd.Format)
 }
 
-func TestMQMDTranslation(t *testing.T) {
+func TestMQMDToNATSTranslation(t *testing.T) {
 	bridge := &BridgeServer{}
 	mqServer, qMgr, err := StartMQTestServer(5*time.Second, false)
 	require.NoError(t, err)
@@ -84,7 +86,7 @@ func TestMQMDTranslation(t *testing.T) {
 	require.NoError(t, err)
 	err = handleIn.SetMP(smpo, "two16", pd, int16(129))
 	require.NoError(t, err)
-	err = handleIn.SetMP(smpo, "two32", pd, int32(356))
+	err = handleIn.SetMP(smpo, "two32", pd, int32(357172))
 	require.NoError(t, err)
 	err = handleIn.SetMP(smpo, "two64", pd, int64(11123123123))
 	require.NoError(t, err)
@@ -128,7 +130,7 @@ func TestMQMDTranslation(t *testing.T) {
 
 	_, value, err = handleOut.InqMP(impo, pd, "two32")
 	require.NoError(t, err)
-	require.Equal(t, int32(356), value.(int32))
+	require.Equal(t, int32(357172), value.(int32))
 
 	_, value, err = handleOut.InqMP(impo, pd, "two64")
 	require.NoError(t, err)
@@ -183,8 +185,151 @@ func TestMQMDTranslation(t *testing.T) {
 	require.Equal(t, expected.MsgFlags, mqmd.MsgFlags)
 	require.Equal(t, expected.OriginalLength, mqmd.OriginalLength)
 
-	require.ElementsMatch(t, expected.MsgId, mqmd.MsgId)
-	require.ElementsMatch(t, expected.CorrelId, mqmd.CorrelId)
-	require.ElementsMatch(t, expected.AccountingToken, mqmd.AccountingToken)
-	require.ElementsMatch(t, expected.GroupId, mqmd.GroupId)
+	require.ElementsMatch(t, expected.MsgId, bytes.Trim(mqmd.MsgId, "\x00"))
+	require.ElementsMatch(t, expected.CorrelId, bytes.Trim(mqmd.CorrelId, "\x00"))
+	require.ElementsMatch(t, expected.AccountingToken, bytes.Trim(mqmd.AccountingToken, "\x00"))
+	require.ElementsMatch(t, expected.GroupId, bytes.Trim(mqmd.GroupId, "\x00"))
+}
+
+func TestNATSToMQMDTranslation(t *testing.T) {
+	bridge := &BridgeServer{}
+	mqServer, qMgr, err := StartMQTestServer(5*time.Second, false)
+	require.NoError(t, err)
+	defer qMgr.Disc()
+	defer mqServer.Close()
+
+	msg := "hello world"
+	msgBytes := []byte(msg)
+
+	// Values aren't valid, but are testable
+	expected := message.NewBridgeMessage(msgBytes)
+	expected.Header.Version = 1
+	expected.Header.Report = 2
+	expected.Header.MsgType = 3
+	expected.Header.Expiry = 4
+	expected.Header.Feedback = 5
+	expected.Header.Encoding = 6
+	expected.Header.CodedCharSetID = 7
+	expected.Header.Format = "8"
+	expected.Header.Priority = 9
+	expected.Header.Persistence = ibmmq.MQPER_PERSISTENCE_AS_Q_DEF
+	expected.Header.MsgID = copyByteArray(msgBytes)
+	expected.Header.CorrelID = copyByteArray(msgBytes)
+	expected.Header.BackoutCount = 11
+	expected.Header.ReplyToQ = "12"
+	expected.Header.ReplyToQMgr = "13"
+	expected.Header.UserIdentifier = "14"
+	expected.Header.AccountingToken = copyByteArray(msgBytes)
+	expected.Header.ApplIdentityData = "15"
+	expected.Header.PutApplType = 16
+	expected.Header.PutApplName = "17"
+	expected.Header.PutDate = "18"
+	expected.Header.PutTime = "19"
+	expected.Header.ApplOriginData = "20"
+	expected.Header.GroupID = copyByteArray(msgBytes)
+	expected.Header.MsgSeqNumber = 21
+	expected.Header.Offset = 22
+	expected.Header.MsgFlags = 23
+	expected.Header.OriginalLength = 24
+
+	expected.SetProperty("one", "alpha")
+	expected.SetProperty("two", int(356))
+	expected.SetProperty("two8", int8(17))
+	expected.SetProperty("two16", int16(129))
+	expected.SetProperty("two32", int32(357172))
+	expected.SetProperty("two64", int64(11123123123))
+	expected.SetProperty("three32", float32(3.0))
+	expected.SetProperty("three64", float64(322222.0))
+	expected.SetProperty("four", []byte("alpha"))
+	expected.SetProperty("five", true)
+	expected.SetProperty("six", nil)
+
+	encodedBytes, err := expected.Encode()
+	require.NoError(t, err)
+	mqmd, handleOut, result, err := bridge.NATSToMQMessage(encodedBytes, "", qMgr)
+	require.NoError(t, err)
+	require.Equal(t, msg, string(result))
+
+	decodedBytes, _, err := bridge.MQToNATSMessage(mqmd, handleOut, result, len(result), qMgr)
+	require.NoError(t, err)
+
+	decoded, err := message.DecodeBridgeMessage(decodedBytes)
+	require.NoError(t, err)
+	require.Equal(t, msg, string(decoded.Body))
+
+	strVal, ok := decoded.GetStringProperty("one")
+	require.True(t, ok)
+	require.Equal(t, "alpha", strVal)
+
+	intVal, ok := decoded.GetInt64Property("two")
+	require.True(t, ok)
+	require.Equal(t, int64(356), intVal)
+
+	int8Val, ok := decoded.GetInt8Property("two8")
+	require.True(t, ok)
+	require.Equal(t, int8(17), int8Val)
+
+	int16Val, ok := decoded.GetInt16Property("two16")
+	require.True(t, ok)
+	require.Equal(t, int16(129), int16Val)
+
+	int32Val, ok := decoded.GetInt32Property("two32")
+	require.True(t, ok)
+	require.Equal(t, int32(357172), int32Val)
+
+	int64Val, ok := decoded.GetInt64Property("two64")
+	require.True(t, ok)
+	require.Equal(t, int64(11123123123), int64Val)
+
+	float32Val, ok := decoded.GetFloat32Property("three32")
+	require.True(t, ok)
+	require.Equal(t, float32(3.0), float32Val)
+
+	float64Val, ok := decoded.GetFloat64Property("three64")
+	require.True(t, ok)
+	require.Equal(t, float64(322222.0), float64Val)
+
+	bytesVal, ok := decoded.GetBytesProperty("four")
+	require.True(t, ok)
+	require.ElementsMatch(t, []byte("alpha"), bytesVal)
+
+	boolVal, ok := decoded.GetBoolProperty("five")
+	require.True(t, ok)
+	require.Equal(t, true, boolVal)
+
+	nilVal, ok := decoded.GetTypedProperty("six")
+	require.True(t, ok)
+	require.Nil(t, nilVal)
+
+	/* Some fields aren't copied, we will test some of these on 1 way
+	require.Equal(t, expected.Version, mqmd.Version)
+	require.Equal(t, expected.MsgType, mqmd.MsgType)
+	require.Equal(t, expected.Expiry, mqmd.Expiry)
+	require.Equal(t, expected.BackoutCount, mqmd.BackoutCount)
+	require.Equal(t, expected.PutDate, mqmd.PutDate)
+	require.Equal(t, expected.PutTime, mqmd.PutTime)
+	*/
+	require.Equal(t, expected.Header.Persistence, decoded.Header.Persistence) // only works with the default
+	require.Equal(t, expected.Header.Report, decoded.Header.Report)
+	require.Equal(t, expected.Header.Feedback, decoded.Header.Feedback)
+	require.Equal(t, expected.Header.Encoding, decoded.Header.Encoding)
+	require.Equal(t, expected.Header.CodedCharSetID, decoded.Header.CodedCharSetID)
+	require.Equal(t, expected.Header.Format, decoded.Header.Format)
+	require.Equal(t, expected.Header.Priority, decoded.Header.Priority)
+	require.Equal(t, expected.Header.ReplyToQ, decoded.Header.ReplyToQ)
+	require.Equal(t, expected.Header.ReplyToQMgr, decoded.Header.ReplyToQMgr)
+	require.Equal(t, expected.Header.UserIdentifier, decoded.Header.UserIdentifier)
+	require.Equal(t, expected.Header.ApplIdentityData, decoded.Header.ApplIdentityData)
+	require.Equal(t, expected.Header.PutApplType, decoded.Header.PutApplType)
+	require.Equal(t, expected.Header.PutApplName, decoded.Header.PutApplName)
+	require.Equal(t, expected.Header.ApplOriginData, decoded.Header.ApplOriginData)
+	require.Equal(t, expected.Header.MsgSeqNumber, decoded.Header.MsgSeqNumber)
+	require.Equal(t, expected.Header.Offset, decoded.Header.Offset)
+	require.Equal(t, expected.Header.MsgFlags, decoded.Header.MsgFlags)
+	require.Equal(t, expected.Header.OriginalLength, decoded.Header.OriginalLength)
+
+	require.ElementsMatch(t, expected.Header.MsgID, decoded.Header.MsgID)
+	require.ElementsMatch(t, expected.Header.CorrelID, decoded.Header.CorrelID)
+	require.ElementsMatch(t, expected.Header.AccountingToken, decoded.Header.AccountingToken)
+	require.ElementsMatch(t, expected.Header.GroupID, decoded.Header.GroupID)
 }

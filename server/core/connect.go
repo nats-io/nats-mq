@@ -48,6 +48,18 @@ func ConnectToQueueManager(mqconfig conf.MQConfig) (*ibmmq.MQQueueManager, error
 	qMgr, err := ibmmq.Connx(qMgrName, connectionOptions)
 
 	if err != nil {
+		mqret := err.(*ibmmq.MQReturn)
+		if mqret.MQCC == ibmmq.MQCC_WARNING && mqret.MQRC == ibmmq.MQRC_SSL_ALREADY_INITIALIZED {
+
+			// double check the connection went through
+			cmho := ibmmq.NewMQCMHO()
+			_, err2 := qMgr.CrtMH(cmho)
+			if err2 != nil {
+				return nil, err
+			}
+
+			return &qMgr, nil
+		}
 		return nil, err
 	}
 
