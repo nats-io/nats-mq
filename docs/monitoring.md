@@ -5,7 +5,9 @@ The nats-mq bridge provides optional HTTP/s monitoring. When [configured with a 
 * [/varz](#varz)
 * [/healthz](#healthz)
 
-## /varz <a name="varz"></a>
+<a name="varz"></a>
+
+## /varz
 
 The `/varz` endpoint returns a JSON encoded set of statistics for the server. These statistics are wrapped in a root level object with the following properties:
 
@@ -32,6 +34,8 @@ Each object in the connectors array, one per connector, will contain the followi
 * `q90` - the 90% quantile for response times, in nanoseconds.
 * `q95` - the 95% quantile for response times, in nanoseconds.
 
-## /healthz <a name="healthz"></a>
+<a name="healthz"></a>
+
+## /healthz
 
 The `/healthz` endpoint is provided for automated up/down style checks. The server returns an HTTP/200 when running and won't respond if it is down.

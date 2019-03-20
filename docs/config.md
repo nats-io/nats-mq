@@ -11,7 +11,9 @@ The bridge uses a single configuration file passed on the command line or enviro
 * [MQ Series](#mq)
 * [Connectors](#connectors)
 
-## Specifying the Configuration File <a name="specify"></a>
+<a name="specify"></a>
+
+## Specifying the Configuration File
 
 To set the configuration on the command line, use:
 
@@ -21,7 +23,9 @@ To set the configuration on the command line, use:
 
 To set the configuration file using an environment variable, export `MQNATS_BRIDGE_CONFIG` with the path to the configuration.
 
-## Root Section <a name="root"></a>
+<a name="root"></a>
+
+## Root Section
 
 The root section:
 
@@ -43,7 +47,9 @@ NATS, streaming and HTTP configurations take an optional TLS setting. The TLS co
 
 MQ SSL properties are configured via a different structure discussed [below](#mq).
 
-## Monitoring <a name="monitoring"></a>
+<a name="monitoring"></a>
+
+## Monitoring
 
 The monitoring section:
 
@@ -69,7 +75,9 @@ Is used to configure an HTTP or HTTPS port, as well as TLS settings when HTTPS i
 
 The `httpport` and `httpsport` settings are mutually exclusive, if both are set to a non-zero value the bridge will not start.
 
-## NATS <a name="nats"></a>
+<a name="nats"></a>
+
+## NATS
 
 The bridge makes a single connection to NATS. This connection is shared by all connectors. Configuration is through the `nats` section of the config file:
 
@@ -92,7 +100,9 @@ NATS can be configured with the following properties:
 * `username` - (optional)  depending on the NATS server configuration, user name for authentication.
 * `password` - (optional)  depending on the NATS server configuration, password for authentication.
 
-## NATS Streaming <a name="stan"></a>
+<a name="stan"></a>
+
+## NATS Streaming
 
 The bridge makes a single connection to a NATS streaming server. This connection is shared by all connectors. Configuration is through the `stan` section of the config file:
 
@@ -112,7 +122,9 @@ NATS streaming can be configured with the following properties:
 * `maxpubacksinflight` - maximum pub ACK messages that can be in flight for this connection.
 * `connectwait` - the time, in milliseconds, to wait before failing to connect to the streaming server.
 
-## MQ Series <a name="mq"></a>
+<a name="mq"></a>
+
+## MQ Series
 
 Each connector in the bridge opens a connection, using `connx`, to the queue manager. These connection may share a TCP channel via the channel name. *The nats-mq bridge uses separate connections to implement transaction isolation.* Each connector will have an `mq` section in its configuration:
 
@@ -140,7 +152,9 @@ as well as three SSL/TLS related properties:
 * `certificatelabel` - (optional) the label of the certificate to use in the key repository.
 * `sslpeername` - (optional) the peer name that should be in the server certificate.
 
-## Connectors <a name="connectors"></a>
+<a name="connectors"></a>
+
+## Connectors
 
 The final piece of the bridge configuration is the `connect` section. Connect specifies an array of connector configurations. All connector configs use the same format, relying on optional settings to determine what the do. Each connector config also contains an [MQ config](#mq).
 
