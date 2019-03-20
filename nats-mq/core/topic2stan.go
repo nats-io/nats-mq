@@ -7,6 +7,7 @@ import (
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
+	"github.com/nats-io/nuid"
 )
 
 // Topic2StanConnector connects an MQ queue to a NATS channel
@@ -26,11 +27,20 @@ type Topic2StanConnector struct {
 
 // NewTopic2StanConnector create a new MQ to Stan connector
 func NewTopic2StanConnector(bridge Bridge, config conf.ConnectorConfig) Connector {
-	return &Topic2StanConnector{
+	connector := &Topic2StanConnector{
 		config: config,
 		bridge: bridge,
 		stats:  NewConnectorStats(),
 	}
+
+	connector.stats.Name = connector.String()
+	connector.stats.ID = connector.config.ID
+
+	if connector.config.ID == "" {
+		connector.stats.ID = nuid.Next()
+	}
+
+	return connector
 }
 
 func (mq *Topic2StanConnector) String() string {

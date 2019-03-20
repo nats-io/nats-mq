@@ -76,22 +76,6 @@ func (bridge *BridgeServer) LoadConfigFile(configFile string) error {
 	return nil
 }
 
-// LoadConfigString initialize the server's configuration from a string, useful for tests
-func (bridge *BridgeServer) LoadConfigString(configString string) error {
-	config := conf.DefaultBridgeConfig()
-
-	if configString == "" {
-		return fmt.Errorf("no config string specified")
-	}
-
-	if err := conf.LoadConfigFromString(configString, &config, false); err != nil {
-		return err
-	}
-
-	bridge.config = config
-	return nil
-}
-
 // LoadConfig initialize the server's configuration to an existing config object, useful for tests
 // Does not initialize the config at all, use DefaultBridgeConfig() to create a default config
 func (bridge *BridgeServer) LoadConfig(config conf.BridgeConfig) error {

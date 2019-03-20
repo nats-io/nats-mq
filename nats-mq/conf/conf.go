@@ -11,10 +11,10 @@ const Queue2NATS = "Queue2NATS"
 // Queue2Stan type for an mq queue to stan connector
 const Queue2Stan = "Queue2Stan"
 
-// Stan2Queue type for an stan to mq queue connector
+// Stan2Queue type for a stan to mq queue connector
 const Stan2Queue = "Stan2Queue"
 
-// NATS2Queue type for an nats to mq queue connector
+// NATS2Queue type for a nats to mq queue connector
 const NATS2Queue = "NATS2Queue"
 
 // Topic2NATS type for an mq topic to nats connector
@@ -23,10 +23,10 @@ const Topic2NATS = "Topic2NATS"
 // Topic2Stan type for an mq topic to stan connector
 const Topic2Stan = "Topic2Stan"
 
-// Stan2Topic type for an stan to mq topic connector
+// Stan2Topic type for a stan to mq topic connector
 const Stan2Topic = "Stan2Topic"
 
-// NATS2Topic type for an nats to mq topic connector
+// NATS2Topic type for a nats to mq topic connector
 const NATS2Topic = "NATS2Topic"
 
 // BridgeConfig holds the server configuration
@@ -122,6 +122,7 @@ type NATSStreamingConfig struct {
 
 // ConnectorConfig configuration for a bridge connection (of any type)
 type ConnectorConfig struct {
+	ID   string // user specified id for a connector, will be defaulted if none is provided
 	Type string // Can be Queue2NATS or any of the other constants
 
 	Channel         string // Used for stan connections

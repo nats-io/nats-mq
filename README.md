@@ -1,106 +1,49 @@
-# nats-mq
+# NATS-MQ Bridge
 
-Simple bridge between NATS streaming and MQ Series
+This project implements a simple, but generic, bridge between NATS or NATS streaming and MQ Series queues and topics.
 
-## Notes/Caveats
+## Features
 
-* This bridge depends on `github.com/ibm-messaging/mq-golang` which uses CGO to access the MQI libraries.
-* There is a fix in the mq-golang library version `7486f4a0b63560e3d0fdcd084b7c0d52b783dc33` that is required for integer properties.
-* Request/reply with queues is supported but reply-to topics are not.
-* Request/reply with NATS streaming requires that ExcludeHeaders be configured to False, the reply-to channel is in the header. Clients need
-to use the BridgeMessage class to wrap messages on the streaming side.
-* For testing we embed the nats-streaming-server which brings in a fair number of dependencies. The bridge executable only requires the nats and streaming clients as well as the go mq-series library.
+* Support for bridging from/to MQ-Series queues or topics
+* Arbitrary subjects in NATS, wildcards for incoming messages
+* Arbitrary channels in NATS streaming
+* Optional durable subscriber names for streaming
+* Complete mapping with message headers, properties and the message body
+* An option to only pass message bodies
+* Request/Reply mapping, when connectors are available
+* Configurable std-out logging
+* A single configuration file, with support for reload
+* Optional SSL to/from MQ-Series, NATS and NATS streaming
+* HTTP/HTTPS-based monitoring endpoints for health or statistics
 
-## Developing
+## Overview
 
-### The MQSeries library
+The bridge runs as a single process with a configured set of connectors mapping an MQ-Series queue or topic to a NATS subject or a NATS streaming channel. Connectors can also map the opposite direction from NATS to MQ-Series. Each connector is a one-way bridge.
 
-The go [mq series library](https://github.com/ibm-messaging/mq-golang) requires the client libraries. These are referenced from the readme, except for [MacOS which are available here](https://developer.ibm.com/messaging/2019/02/05/ibm-mq-macos-toolkit-for-developers/).
+Connectors share a NATS connection and an optional connection to the NATS streaming server. **Connecters each create a connection to the MQ server, subject to TCP connection sharing in the underlying library**
 
-```bash
-export MQ_INSTALLATION_PATH=<your installation library>
-export CGO_LDFLAGS_ALLOW="-Wl,-rpath.*"
-export CGO_CFLAGS="-I$MQ_INSTALLATION_PATH/inc"
-export CGO_LDFLAGS="-L$MQ_INSTALLATION_PATH/lib64 -Wl,-rpath,$MQ_INSTALLATION_PATH/lib64"
- ```
+Messages can be forwarded with or without headers. This mapping is as bi-directional as possible. NATS clients can send messages with MQ headers set, and NATS clients can read the headers contained in MQ messages. However, there are a few limitations where NATS to MQ messages will have headers stripped because they can't be passed in to the queue or topic. When headers are included, the contents of the NATS message is prescribed by a [msgpack-based format.](docs/messages.md) Connectors set to exclude headers will just use the body of the MQ message as the entire NATS message.
 
- *Note there is a typo on the ibm mq web page, missing `-rpath` and has `rpath` instead.
+Request-reply is supported for Queues. Topics with a reply-to queue should work, but reply-to topics are not supported. This support is based on the bridge's configuration. If the bridge maps `queue1` to `subject1` and `subject2` to `queue2`, then a message to `queue1` with a reply-to queue of `queue2` will go out on NATS `subject1` with a reply-to of `subject2`, and vice-versa for the other direction. **Request-reply requires message headers**, and will not work if headers are excluded.
 
- Build the MQ library:
+The bridge is [configured with a NATS server-like format](docs/config.md), in a single file and uses the NATS logger.
 
- ```bash
- go install ./ibmmq
- go install ./mqmetric
- ```
+An [optional HTTP/HTTPS endpoint](docs/monitoring.md) can be used for monitoring.
 
- you may see `ld: warning: directory not found for option '-L/opt/mqm/lib64'` but you can ignore it.
+## Documentation
 
- You will also need to set these variables for building the bridge itself, since it depends on the MQ series packages.
+* [Build & Run the Bridge](docs/developer.md)
+* [Configuration](docs/config.md)
+* [Message Format](docs/messages.md)
+* [Monitoring](docs/monitoring.md)
 
- The dependency on the MQ package requires v3.3.4 to fix an rpath issue on Darwin.
+## External Resources
 
-#### Running the examples from the Go library
+* [NATS](https://nats.io/documentation/)
+* [NATS server](https://github.com/nats-io/gnatsd)
+* [NATS Streaming](https://github.com/nats-io/nats-streaming-server)
+* [MQ Library](https://github.com/ibm-messaging/mq-golang)
 
-The examples that pub/sub require an environment that tells them where the server is. You can use something like:
+## License
 
-```bash
-% export MQSERVER="DEV.APP.SVRCONN/TCP/localhost(1414)"
-```
-
-for the default docker setup described below. This will allow you to run examples:
-
-```bash
-% go run amqsput.go DEV.QUEUE.1 QM1
-```
-
-### Running the docker container for MQ Series
-
-See [https://hub.docker.com/r/ibmcom/mq/](https://hub.docker.com/r/ibmcom/mq/) to get the docker container.
-
-Also check out the [usage documentation](https://github.com/ibm-messaging/mq-container/blob/master/docs/usage.md).
-
-```bash
-docker run \
-  --env LICENSE=accept \
-  --env MQ_QMGR_NAME=QM1 \
-  --publish 1414:1414 \
-  --publish 9443:9443 \
-  --detach \
-  ibmcom/mq
-```
-
-or use the `scripts/run_mq.sh` to execute that command.
-
-#### Connecting to the docker web admin
-
-[https://localhost:9443/ibmmq/console/](https://localhost:9443/ibmmq/console/)
-
-The login is:
-
-```bash
-User: admin
-Password: passw0rd
-```
-
-Chrome may complain because the certificate for the server isn't valid, but go on through.
-
-#### Connecting with an application
-
-For applications the login is documented as:
-
-```bash
-User: app
-Password: *none*
-```
-
-I found that simply turning off user name and password works.
-
-#### TLS Setup
-
-See [this ibm post](https://developer.ibm.com/messaging/learn-mq/mq-tutorials/secure-mq-tls/) for information about how the test TLS files for the docker image were created. The generated certs/keys are in the resources folder under mqm. A script is provided `scripts/run_mq_tls.sh` to run the server with this TLS setting. The TLS script will also set the app password to `passw0rd` for testing.
-
-The server cert has the password `k3ypassw0rd`.
-
-The client cert has the password `tru5tpassw0rd`, and the label `QM1.cert`
-
-I created the kdb file using `runmqakm -cert -export -db client_key.p12 -pw tru5tpassw0rd -target_stashed -target_type kdb -target client.kdb -label "QM1.cert"`.
+Unless otherwise noted, the NATS-MQ bridge source files are distributed under the Apache Version 2.0 license found in the LICENSE file.

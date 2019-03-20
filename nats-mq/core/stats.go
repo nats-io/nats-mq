@@ -15,10 +15,11 @@ type BridgeStats struct {
 
 // ConnectorStats captures the statistics for a single connector
 type ConnectorStats struct {
+	Name          string  `json:"name"`
+	ID            string  `json:"id"`
 	Connected     bool    `json:"connected"`
 	Connects      int64   `json:"connects"`
 	Disconnects   int64   `json:"disconnects"`
-	Name          string  `json:"name"`
 	BytesIn       int64   `json:"bytes_in"`
 	BytesOut      int64   `json:"bytes_out"`
 	MessagesIn    int64   `json:"msg_in"`
