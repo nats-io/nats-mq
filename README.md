@@ -32,7 +32,7 @@ An [optional HTTP/HTTPS endpoint](docs/monitoring.md) can be used for monitoring
 
 ## Documentation
 
-* [Build & Run the Bridge](docs/developer.md)
+* [Build & Run the Bridge](docs/buildandrun.md)
 * [Configuration](docs/config.md)
 * [Message Format](docs/messages.md)
 * [Monitoring](docs/monitoring.md)
