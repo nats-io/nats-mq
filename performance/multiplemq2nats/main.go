@@ -46,6 +46,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error starting test environment, %s", err.Error())
 	}
+	defer tbs.Close()
 
 	start := time.Now()
 	done := make(chan bool)

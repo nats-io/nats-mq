@@ -122,3 +122,28 @@ func TestSimpleSendOnNatsReceiveOnQueueWithTLS(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 }
+
+func TestWildcardSendRecieveOnQueue(t *testing.T) {
+	queue := "DEV.QUEUE.1"
+	msg := "hello world"
+
+	connect := []conf.ConnectorConfig{
+		{
+			Type:           "NATS2Queue",
+			Subject:        "test.*",
+			Queue:          queue,
+			ExcludeHeaders: true,
+		},
+	}
+
+	tbs, err := StartTestEnvironment(connect)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	err = tbs.NC.Publish("test.a", []byte(msg))
+	require.NoError(t, err)
+
+	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	require.NoError(t, err)
+	require.Equal(t, msg, string(data))
+}

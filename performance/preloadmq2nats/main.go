@@ -35,6 +35,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error starting test environment, %s", err.Error())
 	}
+	defer tbs.Close()
 
 	mqod := ibmmq.NewMQOD()
 	openOptions := ibmmq.MQOO_OUTPUT

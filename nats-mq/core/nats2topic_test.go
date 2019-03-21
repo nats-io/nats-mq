@@ -163,3 +163,44 @@ func TestSimpleSendOnNatsReceiveOnTopicWithTLS(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, msg, string(buffer[:datalen]))
 }
+
+func TestWildcardSendRecieveOnTopic(t *testing.T) {
+	var topicObject ibmmq.MQObject
+
+	topic := "dev/"
+	msg := "hello world"
+
+	connect := []conf.ConnectorConfig{
+		{
+			Type:           "NATS2Topic",
+			Subject:        "test.*",
+			Topic:          topic,
+			ExcludeHeaders: true,
+		},
+	}
+
+	tbs, err := StartTestEnvironment(connect)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	mqsd := ibmmq.NewMQSD()
+	mqsd.Options = ibmmq.MQSO_CREATE | ibmmq.MQSO_NON_DURABLE | ibmmq.MQSO_MANAGED
+	mqsd.ObjectString = topic
+	sub, err := tbs.QMgr.Sub(mqsd, &topicObject)
+	require.NoError(t, err)
+	defer sub.Close(0)
+
+	err = tbs.NC.Publish("test.a", []byte(msg))
+	require.NoError(t, err)
+
+	mqmd := ibmmq.NewMQMD()
+	gmo := ibmmq.NewMQGMO()
+	gmo.Options = ibmmq.MQGMO_NO_SYNCPOINT
+	gmo.Options |= ibmmq.MQGMO_WAIT
+	gmo.WaitInterval = 3 * 1000 // The WaitInterval is in milliseconds
+	buffer := make([]byte, 1024)
+
+	datalen, err := topicObject.Get(mqmd, gmo, buffer)
+	require.NoError(t, err)
+	require.Equal(t, msg, string(buffer[:datalen]))
+}

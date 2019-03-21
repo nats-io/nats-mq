@@ -2,38 +2,26 @@ package core
 
 import (
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	nats "github.com/nats-io/go-nats"
-	stan "github.com/nats-io/go-nats-streaming"
+	"github.com/nats-io/go-nats"
+	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
-	"github.com/nats-io/nats-mq/nats-mq/logging"
+	"github.com/nats-io/nuid"
 )
 
-// Bridge abstracts the bridge server for connectors
-type Bridge interface {
-	ConnectorError(connector Connector, err error)
-	NATS() *nats.Conn
-	Stan() stan.Conn
-	Logger() logging.Logger
-	RegisterReplyInfo(desc string, config conf.ConnectorConfig)
-
-	SubscribeToChannel(config conf.ConnectorConfig, handler stan.MsgHandler) (stan.Subscription, error)
-	NATSToMQMessage(data []byte, replyTo string, qmgr *ibmmq.MQQueueManager) (*ibmmq.MQMD, ibmmq.MQMessageHandle, []byte, error)
-	MQToNATSMessage(mqmd *ibmmq.MQMD, handle ibmmq.MQMessageHandle, data []byte, length int, qmgr *ibmmq.MQQueueManager) ([]byte, string, error)
-}
-
-// Connector is used to type the various connectors in the bridge
+// Connector is the abstraction for all of the bridge connector types
 type Connector interface {
 	Start() error
 	Shutdown() error
 	String() string
-	Config() conf.ConnectorConfig
 	Stats() ConnectorStats
 }
 
 // CreateConnector builds a connector from the supplied configuration
-func CreateConnector(config conf.ConnectorConfig, bridge Bridge) (Connector, error) {
+func CreateConnector(config conf.ConnectorConfig, bridge *BridgeServer) (Connector, error) {
 	switch config.Type {
 	case conf.Queue2NATS:
 		bridge.RegisterReplyInfo("S:"+config.Subject, config)
@@ -62,4 +50,289 @@ func CreateConnector(config conf.ConnectorConfig, bridge Bridge) (Connector, err
 	default:
 		return nil, fmt.Errorf("unknown connector type %q in configuration", config.Type)
 	}
+}
+
+// BridgeConnector is the base type used for connectors so that they can share code
+type BridgeConnector struct {
+	sync.Mutex
+
+	config conf.ConnectorConfig
+	bridge *BridgeServer
+	stats  ConnectorStats
+
+	qMgr *ibmmq.MQQueueManager
+}
+
+// Start is a no-op, designed for overriding
+func (mq *BridgeConnector) Start() error {
+	return nil
+}
+
+// Shutdown is a no-op, designed for overriding
+func (mq *BridgeConnector) Shutdown() error {
+	return nil
+}
+
+// String is a no-op, designed for overriding
+func (mq *BridgeConnector) String() string {
+	return ""
+}
+
+// Init sets up common fields for all connectors
+func (mq *BridgeConnector) init(bridge *BridgeServer, config conf.ConnectorConfig) {
+	mq.config = config
+	mq.bridge = bridge
+	mq.stats = NewConnectorStats()
+	mq.stats.Name = mq.String()
+	mq.stats.ID = mq.config.ID
+
+	if mq.config.ID == "" {
+		mq.stats.ID = nuid.Next()
+	}
+}
+
+// init the MQ connection - expects the lock to be held by the caller
+func (mq *BridgeConnector) connectToMQ() error {
+	mqconfig := mq.config.MQ
+
+	qMgr, err := ConnectToQueueManager(mqconfig)
+	if err != nil {
+		return err
+	}
+
+	mq.bridge.Logger().Tracef("connected to queue manager %s at %s as %s for %s", mqconfig.QueueManager, mqconfig.ConnectionName, mqconfig.ChannelName, mq.String())
+
+	mq.qMgr = qMgr
+	return nil
+}
+
+// Stats returns a copy of the current stats for this connector
+func (mq *BridgeConnector) Stats() ConnectorStats {
+	mq.Lock()
+	defer mq.Unlock()
+	return mq.stats
+}
+
+// NATSCallback used by mq-nats connectors in an MQ library callback
+// The lock will be held by the caller!
+type NATSCallback func(natsMsg []byte, replyTo string) error
+
+func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback) (*ibmmq.MQCTLO, error) {
+	getmqmd := ibmmq.NewMQMD()
+	gmo := ibmmq.NewMQGMO()
+	gmo.Options = ibmmq.MQGMO_SYNCPOINT
+	gmo.Options |= ibmmq.MQGMO_WAIT
+	gmo.Options |= ibmmq.MQGMO_FAIL_IF_QUIESCING
+
+	cbd := ibmmq.NewMQCBD()
+	cbd.CallbackFunction = func(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
+		mq.Lock()
+		defer mq.Unlock()
+		start := time.Now()
+
+		if mqErr != nil && mqErr.MQCC != ibmmq.MQCC_OK {
+			if mqErr.MQRC == ibmmq.MQRC_NO_MSG_AVAILABLE {
+				mq.bridge.Logger().Tracef("message timeout on %s", mq.String())
+				return
+			}
+
+			err := fmt.Errorf("mq error in callback %s", mqErr.Error())
+			go mq.bridge.ConnectorError(Connector(mq), err)
+			return
+		}
+
+		bufferLen := len(buffer)
+
+		mq.bridge.Logger().Tracef("%s got message of length %d", mq.String(), bufferLen)
+
+		qmgrFlag := mq.qMgr
+
+		if mq.config.ExcludeHeaders {
+			qmgrFlag = nil
+		}
+
+		mq.stats.AddMessageIn(int64(bufferLen))
+		natsMsg, replyTo, err := mq.bridge.MQToNATSMessage(md, gmo.MsgHandle, buffer, bufferLen, qmgrFlag)
+
+		if err != nil {
+			mq.bridge.Logger().Noticef("message conversion failure %s, %s", mq.String(), err.Error())
+			mq.qMgr.Back()
+			return
+		}
+
+		err = cb(natsMsg, replyTo)
+
+		if err != nil {
+			mq.bridge.Logger().Noticef("publish failure for %s, %s", mq.String(), err.Error())
+			mq.qMgr.Back()
+		} else {
+			mq.qMgr.Cmit()
+			mq.stats.AddMessageOut(int64(len(natsMsg)))
+			mq.stats.AddRequestTime(time.Now().Sub(start))
+		}
+	}
+	err := target.CB(ibmmq.MQOP_REGISTER, cbd, getmqmd, gmo)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ctlo := ibmmq.NewMQCTLO()
+	err = mq.qMgr.Ctl(ibmmq.MQOP_START, ctlo)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctlo, nil
+}
+
+func (mq *BridgeConnector) stanMessageHandler(natsMsg []byte, replyTo string) error {
+	return mq.bridge.Stan().Publish(mq.config.Channel, natsMsg)
+}
+
+func (mq *BridgeConnector) natsMessageHandler(natsMsg []byte, replyTo string) error {
+	var err error
+	if replyTo != "" {
+		err = mq.bridge.NATS().PublishRequest(mq.config.Subject, replyTo, natsMsg)
+	} else {
+		err = mq.bridge.NATS().Publish(mq.config.Subject, natsMsg)
+	}
+	return err
+}
+
+func (mq *BridgeConnector) connectToQueue(queueName string, openOptions int32) (*ibmmq.MQObject, error) {
+	mqod := ibmmq.NewMQOD()
+	mqod.ObjectType = ibmmq.MQOT_Q
+	mqod.ObjectName = queueName
+
+	qObject, err := mq.qMgr.Open(mqod, openOptions)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &qObject, nil
+}
+
+// subscribeToTopic subscribes to a topic
+func (mq *BridgeConnector) subscribeToTopic(topicName string) (*ibmmq.MQObject, *ibmmq.MQObject, error) {
+	topic := &ibmmq.MQObject{}
+	mqsd := ibmmq.NewMQSD()
+	mqsd.Options = ibmmq.MQSO_CREATE | ibmmq.MQSO_NON_DURABLE | ibmmq.MQSO_MANAGED
+	mqsd.ObjectString = topicName
+	subscriptionObject, err := mq.qMgr.Sub(mqsd, topic)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return topic, &subscriptionObject, nil
+}
+
+// connectToTopic sets up a topic for output
+func (mq *BridgeConnector) connectToTopic(topicName string) (*ibmmq.MQObject, error) {
+	mqod := ibmmq.NewMQOD()
+	openOptions := ibmmq.MQOO_OUTPUT
+	mqod.ObjectType = ibmmq.MQOT_TOPIC
+	mqod.ObjectString = topicName
+	topic, err := mq.qMgr.Open(mqod, openOptions)
+	if err != nil {
+		return nil, err
+	}
+	return &topic, err
+}
+
+// set up a nats subscription, assumes the lock is held
+func (mq *BridgeConnector) subscribeToNATS(subject string, dest *ibmmq.MQObject) (*nats.Subscription, error) {
+	return mq.bridge.NATS().Subscribe(subject, func(m *nats.Msg) {
+		mq.Lock()
+		defer mq.Unlock()
+		start := time.Now()
+
+		qmgrFlag := mq.qMgr
+
+		if mq.config.ExcludeHeaders {
+			qmgrFlag = nil
+		}
+
+		mq.stats.AddMessageIn(int64(len(m.Data)))
+		mqmd, handle, buffer, err := mq.bridge.NATSToMQMessage(m.Data, m.Reply, qmgrFlag)
+
+		if err != nil {
+			mq.bridge.Logger().Noticef("message conversion failure, %s, %s", mq.String(), err.Error())
+			return
+		}
+
+		pmo := ibmmq.NewMQPMO()
+		pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
+		pmo.OriginalMsgHandle = handle
+
+		err = dest.Put(mqmd, pmo, buffer)
+
+		if err != nil {
+			mq.bridge.Logger().Noticef("MQ publish failure, %s, %s", mq.String(), err.Error())
+		} else {
+			mq.stats.AddMessageOut(int64(len(buffer)))
+			mq.stats.AddRequestTime(time.Now().Sub(start))
+		}
+	})
+}
+
+// subscribeToChannel uses the bridges STAN connection to subscribe based on the config
+// The start position/time and durable name are optional
+func (mq *BridgeConnector) subscribeToChannel(dest *ibmmq.MQObject) (stan.Subscription, error) {
+	if mq.bridge.Stan() == nil {
+		return nil, fmt.Errorf("bridge not configured to use NATS streaming")
+	}
+
+	options := []stan.SubscriptionOption{}
+
+	if mq.config.DurableName != "" {
+		options = append(options, stan.DurableName(mq.config.DurableName))
+	}
+
+	if mq.config.StartAtTime != 0 {
+		t := time.Unix(mq.config.StartAtTime, 0)
+		options = append(options, stan.StartAtTime(t))
+	} else if mq.config.StartAtSequence == -1 {
+		options = append(options, stan.StartWithLastReceived())
+	} else if mq.config.StartAtSequence > 0 {
+		options = append(options, stan.StartAtSequence(uint64(mq.config.StartAtSequence)))
+	} else {
+		options = append(options, stan.DeliverAllAvailable())
+	}
+
+	sub, err := mq.bridge.Stan().Subscribe(mq.config.Channel, func(m *stan.Msg) {
+		mq.Lock()
+		defer mq.Unlock()
+		start := time.Now()
+
+		qmgrFlag := mq.qMgr
+
+		if mq.config.ExcludeHeaders {
+			qmgrFlag = nil
+		}
+
+		mq.stats.AddMessageIn(int64(len(m.Data)))
+		mqmd, handle, buffer, err := mq.bridge.NATSToMQMessage(m.Data, "", qmgrFlag)
+		if err != nil {
+			mq.bridge.Logger().Noticef("message conversion failure, %s, %s", mq.String(), err.Error())
+			return
+		}
+
+		pmo := ibmmq.NewMQPMO()
+		pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT
+		pmo.OriginalMsgHandle = handle
+
+		err = dest.Put(mqmd, pmo, buffer)
+
+		if err != nil {
+			mq.bridge.Logger().Noticef("MQ put failure, %s, %s", mq.String(), err.Error())
+		} else {
+			mq.stats.AddMessageOut(int64(len(buffer)))
+			mq.stats.AddRequestTime(time.Now().Sub(start))
+		}
+	}, options...)
+
+	return sub, err
 }

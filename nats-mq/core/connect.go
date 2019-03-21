@@ -1,11 +1,7 @@
 package core
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	stan "github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
 )
 
@@ -62,33 +58,4 @@ func ConnectToQueueManager(mqconfig conf.MQConfig) (*ibmmq.MQQueueManager, error
 	}
 
 	return &qMgr, nil
-}
-
-// SubscribeToChannel uses the bridges STAN connection to subscribe based on the config
-// The start position/time and durable name are optional
-func (bridge *BridgeServer) SubscribeToChannel(config conf.ConnectorConfig, handler stan.MsgHandler) (stan.Subscription, error) {
-	if bridge.Stan() == nil {
-		return nil, fmt.Errorf("bridge not configured to use NATS streaming")
-	}
-
-	options := []stan.SubscriptionOption{}
-
-	if config.DurableName != "" {
-		options = append(options, stan.DurableName(config.DurableName))
-	}
-
-	if config.StartAtTime != 0 {
-		t := time.Unix(config.StartAtTime, 0)
-		options = append(options, stan.StartAtTime(t))
-	} else if config.StartAtSequence == -1 {
-		options = append(options, stan.StartWithLastReceived())
-	} else if config.StartAtSequence > 0 {
-		options = append(options, stan.StartAtSequence(uint64(config.StartAtSequence)))
-	} else {
-		options = append(options, stan.DeliverAllAvailable())
-	}
-
-	sub, err := bridge.Stan().Subscribe(config.Channel, handler, options...)
-
-	return sub, err
 }
