@@ -73,17 +73,17 @@ func (mq *BridgeConnector) Shutdown() error {
 	return nil
 }
 
-// String is a no-op, designed for overriding
+// String returns the name passed into init
 func (mq *BridgeConnector) String() string {
-	return ""
+	return mq.stats.Name
 }
 
 // Init sets up common fields for all connectors
-func (mq *BridgeConnector) init(bridge *BridgeServer, config conf.ConnectorConfig) {
+func (mq *BridgeConnector) init(bridge *BridgeServer, config conf.ConnectorConfig, name string) {
 	mq.config = config
 	mq.bridge = bridge
 	mq.stats = NewConnectorStats()
-	mq.stats.Name = mq.String()
+	mq.stats.Name = name
 	mq.stats.ID = mq.config.ID
 
 	if mq.config.ID == "" {
@@ -111,6 +111,48 @@ func (mq *BridgeConnector) Stats() ConnectorStats {
 	mq.Lock()
 	defer mq.Unlock()
 	return mq.stats
+}
+
+func (mq *BridgeConnector) connectToQueue(queueName string, openOptions int32) (*ibmmq.MQObject, error) {
+	mqod := ibmmq.NewMQOD()
+	mqod.ObjectType = ibmmq.MQOT_Q
+	mqod.ObjectName = queueName
+
+	qObject, err := mq.qMgr.Open(mqod, openOptions)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &qObject, nil
+}
+
+// subscribeToTopic subscribes to a topic
+func (mq *BridgeConnector) subscribeToTopic(topicName string) (*ibmmq.MQObject, *ibmmq.MQObject, error) {
+	topic := &ibmmq.MQObject{}
+	mqsd := ibmmq.NewMQSD()
+	mqsd.Options = ibmmq.MQSO_CREATE | ibmmq.MQSO_NON_DURABLE | ibmmq.MQSO_MANAGED
+	mqsd.ObjectString = topicName
+	subscriptionObject, err := mq.qMgr.Sub(mqsd, topic)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return topic, &subscriptionObject, nil
+}
+
+// connectToTopic sets up a topic for output
+func (mq *BridgeConnector) connectToTopic(topicName string) (*ibmmq.MQObject, error) {
+	mqod := ibmmq.NewMQOD()
+	openOptions := ibmmq.MQOO_OUTPUT
+	mqod.ObjectType = ibmmq.MQOT_TOPIC
+	mqod.ObjectString = topicName
+	topic, err := mq.qMgr.Open(mqod, openOptions)
+	if err != nil {
+		return nil, err
+	}
+	return &topic, err
 }
 
 // NATSCallback used by mq-nats connectors in an MQ library callback
@@ -198,48 +240,6 @@ func (mq *BridgeConnector) natsMessageHandler(natsMsg []byte, replyTo string) er
 		err = mq.bridge.NATS().Publish(mq.config.Subject, natsMsg)
 	}
 	return err
-}
-
-func (mq *BridgeConnector) connectToQueue(queueName string, openOptions int32) (*ibmmq.MQObject, error) {
-	mqod := ibmmq.NewMQOD()
-	mqod.ObjectType = ibmmq.MQOT_Q
-	mqod.ObjectName = queueName
-
-	qObject, err := mq.qMgr.Open(mqod, openOptions)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &qObject, nil
-}
-
-// subscribeToTopic subscribes to a topic
-func (mq *BridgeConnector) subscribeToTopic(topicName string) (*ibmmq.MQObject, *ibmmq.MQObject, error) {
-	topic := &ibmmq.MQObject{}
-	mqsd := ibmmq.NewMQSD()
-	mqsd.Options = ibmmq.MQSO_CREATE | ibmmq.MQSO_NON_DURABLE | ibmmq.MQSO_MANAGED
-	mqsd.ObjectString = topicName
-	subscriptionObject, err := mq.qMgr.Sub(mqsd, topic)
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return topic, &subscriptionObject, nil
-}
-
-// connectToTopic sets up a topic for output
-func (mq *BridgeConnector) connectToTopic(topicName string) (*ibmmq.MQObject, error) {
-	mqod := ibmmq.NewMQOD()
-	openOptions := ibmmq.MQOO_OUTPUT
-	mqod.ObjectType = ibmmq.MQOT_TOPIC
-	mqod.ObjectString = topicName
-	topic, err := mq.qMgr.Open(mqod, openOptions)
-	if err != nil {
-		return nil, err
-	}
-	return &topic, err
 }
 
 // set up a nats subscription, assumes the lock is held

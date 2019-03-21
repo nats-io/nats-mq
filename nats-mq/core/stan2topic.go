@@ -19,12 +19,8 @@ type Stan2TopicConnector struct {
 // NewStan2TopicConnector create a new Stan to MQ connector
 func NewStan2TopicConnector(bridge *BridgeServer, config conf.ConnectorConfig) Connector {
 	connector := &Stan2TopicConnector{}
-	connector.init(bridge, config)
+	connector.init(bridge, config, fmt.Sprintf("STAN:%s to Topic:%s", config.Channel, config.Topic))
 	return connector
-}
-
-func (mq *Stan2TopicConnector) String() string {
-	return fmt.Sprintf("STAN:%s to Topic:%s", mq.config.Channel, mq.config.Topic)
 }
 
 // Start the connector

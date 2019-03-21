@@ -19,12 +19,8 @@ type Stan2QueueConnector struct {
 // NewStan2QueueConnector create a new Stan to MQ connector
 func NewStan2QueueConnector(bridge *BridgeServer, config conf.ConnectorConfig) Connector {
 	connector := &Stan2QueueConnector{}
-	connector.init(bridge, config)
+	connector.init(bridge, config, fmt.Sprintf("STAN:%s to Queue:%s", config.Channel, config.Queue))
 	return connector
-}
-
-func (mq *Stan2QueueConnector) String() string {
-	return fmt.Sprintf("STAN:%s to Queue:%s", mq.config.Channel, mq.config.Queue)
 }
 
 // Start the connector

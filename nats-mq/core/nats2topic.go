@@ -19,12 +19,8 @@ type NATS2TopicConnector struct {
 // NewNATS2TopicConnector create a nats to MQ connector
 func NewNATS2TopicConnector(bridge *BridgeServer, config conf.ConnectorConfig) Connector {
 	connector := &NATS2TopicConnector{}
-	connector.init(bridge, config)
+	connector.init(bridge, config, fmt.Sprintf("NATS:%s to Topic:%s", config.Subject, config.Topic))
 	return connector
-}
-
-func (mq *NATS2TopicConnector) String() string {
-	return fmt.Sprintf("NATS:%s to Topic:%s", mq.config.Subject, mq.config.Topic)
 }
 
 // Start the connector

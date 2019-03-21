@@ -21,12 +21,8 @@ type NATS2QueueConnector struct {
 // NewNATS2QueueConnector create a nats to MQ connector
 func NewNATS2QueueConnector(bridge *BridgeServer, config conf.ConnectorConfig) Connector {
 	connector := &NATS2QueueConnector{}
-	connector.init(bridge, config)
+	connector.init(bridge, config, fmt.Sprintf("NATS:%s to Queue:%s", config.Subject, config.Queue))
 	return connector
-}
-
-func (mq *NATS2QueueConnector) String() string {
-	return fmt.Sprintf("NATS:%s to Queue:%s", mq.config.Subject, mq.config.Queue)
 }
 
 // Start the connector
