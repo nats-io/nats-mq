@@ -11,6 +11,12 @@ The bridge uses a single configuration file passed on the command line or enviro
 * [MQ Series](#mq)
 * [Connectors](#connectors)
 
+The configuration file format matches the NATS server and supports file includes of the form:
+
+```yaml
+include "./includes/connectors.conf"
+```
+
 <a name="specify"></a>
 
 ## Specifying the Configuration File
