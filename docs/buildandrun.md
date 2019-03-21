@@ -177,4 +177,7 @@ We created the kdb file using `runmqakm -cert -export -db client_key.p12 -pw tru
 
 ### Developer notes
 
-The MQ series code uses callbacks, instead of get/put, to receive messages from Queues and Topics.
+* The MQ series code uses callbacks, instead of get/put, to receive messages from Queues and Topics.
+* Using docker for tests will eat up docker space, you may need to run `docker system prune` once in a while to clean this up. The symptom of a full cache will be that the tests take forever to run because they fail to run the MQ series server image and spend 30s trying to connect before failing.
+* `nats-mq/core/test_util.go` has the implementation used to run the nats server, the streaming server and the MQ image for each test.
+* A number of performance "tests" are provided in the `performance` folder.
