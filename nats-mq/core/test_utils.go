@@ -453,6 +453,8 @@ func StartMQTestServer(waitForStart time.Duration, useTLS bool, mqPort int) (*MQ
 		extraQueues += fmt.Sprintf("SET AUTHREC PROFILE('TEST.QUEUE.%d') OBJTYPE(QUEUE) PRINCIPAL('app') AUTHADD(BROWSE, GET, PUT, INQ)\n", i)
 	}
 
+	extraQueues += "ALTAR CHANNEL(DEV.APP.SVRCONN) SHARECNV(1)"
+
 	extraQueueFile := filepath.Join(dir, "20-config.mqsc")
 	ioutil.WriteFile(extraQueueFile, []byte(extraQueues), 0644)
 

@@ -24,7 +24,7 @@ func main() {
 
 	connect := []conf.ConnectorConfig{}
 
-	for i := 1; i <= 50; i++ {
+	for i := 1; i <= 10; i++ {
 		connect = append(connect, conf.ConnectorConfig{
 			Type:                  "Queue2NATS",
 			Subject:               fmt.Sprintf("test.%d", i),
@@ -70,7 +70,6 @@ func main() {
 		if err != nil {
 			log.Fatalf("error opening queue object %s, %s", c.Queue, err.Error())
 		}
-		defer qObject.Close(0)
 
 		putmqmd := ibmmq.NewMQMD()
 		pmo := ibmmq.NewMQPMO()
@@ -81,6 +80,7 @@ func main() {
 		for i := 0; i < iterations; i++ {
 			err = qObject.Put(putmqmd, pmo, buffer)
 		}
+		qObject.Close(0)
 	}
 
 	// Queues are ready, now start the bridge
