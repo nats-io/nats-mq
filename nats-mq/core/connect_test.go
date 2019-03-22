@@ -8,7 +8,7 @@ import (
 )
 
 func TestMQTestServer(t *testing.T) {
-	mqServer, qMgr, err := StartMQTestServer(5*time.Second, false)
+	mqServer, qMgr, err := StartMQTestServer(5*time.Second, false, 0)
 	defer func() {
 		if qMgr != nil {
 			qMgr.Disc()
@@ -25,7 +25,7 @@ func TestMQTestServer(t *testing.T) {
 }
 
 func TestMQTestServerWithTLS(t *testing.T) {
-	mqServer, qMgr, err := StartMQTestServer(30*time.Second, true)
+	mqServer, qMgr, err := StartMQTestServer(30*time.Second, true, 0)
 	defer func() {
 		if qMgr != nil {
 			qMgr.Disc()

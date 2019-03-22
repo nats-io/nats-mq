@@ -28,7 +28,7 @@ func (mq *Stan2TopicConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.bridge.Stan() == nil {
+	if !mq.bridge.CheckStan() {
 		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
 	}
 
@@ -89,4 +89,12 @@ func (mq *Stan2TopicConnector) Shutdown() error {
 	}
 
 	return err // ignore the disconnect error
+}
+
+// CheckConnections ensures the nats/stan connection and report an error if it is down
+func (mq *Stan2TopicConnector) CheckConnections() error {
+	if !mq.bridge.CheckStan() {
+		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
+	}
+	return nil
 }

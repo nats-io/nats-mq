@@ -28,7 +28,7 @@ func (mq *Stan2QueueConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.bridge.Stan() == nil {
+	if !mq.bridge.CheckStan() {
 		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
 	}
 
@@ -88,4 +88,12 @@ func (mq *Stan2QueueConnector) Shutdown() error {
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 	return err // ignore the disconnect error
+}
+
+// CheckConnections ensures the nats/stan connection and report an error if it is down
+func (mq *Stan2QueueConnector) CheckConnections() error {
+	if !mq.bridge.CheckStan() {
+		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
+	}
+	return nil
 }

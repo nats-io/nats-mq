@@ -19,19 +19,25 @@ var version = "0.0.0-dev"
 
 // BridgeServer represents the bridge server
 type BridgeServer struct {
-	sync.Mutex
-	running bool
+	runningLock sync.Mutex
+	running     bool
 
 	startTime time.Time
 	config    conf.BridgeConfig
 	logger    logging.Logger
 
-	nats *nats.Conn
-	stan stan.Conn
+	natsLock sync.Mutex
+	nats     *nats.Conn
+	stan     stan.Conn
 
 	connectors  []Connector
 	replyToInfo map[string]conf.ConnectorConfig
 
+	reconnectLock  sync.Mutex
+	reconnect      map[string]Connector
+	reconnectTimer *reconnectTimer
+
+	statsLock        sync.Mutex
 	httpReqStats     map[string]int64
 	httpHandler      *http.ServeMux
 	monitoringServer *http.Server
@@ -85,8 +91,8 @@ func (bridge *BridgeServer) LoadConfig(config conf.BridgeConfig) error {
 
 // Start the server, will lock the server, assumes the config is loaded
 func (bridge *BridgeServer) Start() error {
-	bridge.Lock()
-	defer bridge.Unlock()
+	bridge.runningLock.Lock()
+	defer bridge.runningLock.Unlock()
 
 	if bridge.logger != nil {
 		bridge.logger.Close()
@@ -97,6 +103,7 @@ func (bridge *BridgeServer) Start() error {
 	bridge.logger = logging.NewNATSLogger(bridge.config.Logging)
 	bridge.replyToInfo = map[string]conf.ConnectorConfig{}
 	bridge.connectors = []Connector{}
+	bridge.reconnect = map[string]Connector{}
 
 	bridge.logger.Noticef("starting MQ-NATS bridge, version %s", version)
 	bridge.logger.Noticef("server time is %s", bridge.startTime.Format(time.UnixDate))
@@ -126,12 +133,18 @@ func (bridge *BridgeServer) Start() error {
 
 // Stop the bridge server
 func (bridge *BridgeServer) Stop() {
-	bridge.Lock()
-	defer bridge.Unlock()
+	bridge.runningLock.Lock()
+	defer bridge.runningLock.Unlock()
+
+	if !bridge.running {
+		return // already stopped
+	}
 
 	bridge.logger.Noticef("stopping bridge")
 
 	bridge.running = false
+	bridge.stopReconnectTimer()
+	bridge.reconnect = map[string]Connector{} // clear the map
 
 	for _, c := range bridge.connectors {
 		err := c.Shutdown()
@@ -157,6 +170,7 @@ func (bridge *BridgeServer) Stop() {
 	}
 }
 
+// assumes the lock is held by the caller
 func (bridge *BridgeServer) initializeConnectors() error {
 	connectorConfigs := bridge.config.Connect
 
@@ -172,6 +186,7 @@ func (bridge *BridgeServer) initializeConnectors() error {
 	return nil
 }
 
+// assumes the lock is held by the caller
 func (bridge *BridgeServer) startConnectors() error {
 	for _, c := range bridge.connectors {
 		if err := c.Start(); err != nil {
@@ -182,49 +197,23 @@ func (bridge *BridgeServer) startConnectors() error {
 	return nil
 }
 
-// ConnectorError is called by a connector if it has a failure that requires a reconnect
-func (bridge *BridgeServer) ConnectorError(connector Connector, err error) {
-	description := connector.String()
-	bridge.logger.Errorf("a connector error has occurred, trying to restart %s, %s", description, err.Error())
-
-	err = connector.Shutdown()
-
-	if err != nil {
-		bridge.logger.Noticef("error shutting down connector %s, trying to restart, %s", description, err.Error())
-	}
-
-	bridge.restartConnector(connector, description)
-}
-
-func (bridge *BridgeServer) restartConnector(connector Connector, description string) {
-	bridge.Lock()
-	defer bridge.Unlock()
-
-	if !bridge.running {
-		return
-	}
-
-	err := connector.Start()
-
-	if err != nil {
-		interval := bridge.config.ReconnectInterval
-		bridge.logger.Noticef("error restarting connector %s, will retry in %d milliseconds, %s", description, interval, err.Error())
-		timer := time.NewTimer(time.Duration(interval) * time.Millisecond)
-		go func() {
-			<-timer.C
-			bridge.logger.Noticef("trying to restart connector %s", description)
-			bridge.restartConnector(connector, description)
-		}()
-	}
+func (bridge *BridgeServer) checkRunning() bool {
+	bridge.runningLock.Lock()
+	defer bridge.runningLock.Unlock()
+	return bridge.running
 }
 
 // NATS hosts a shared nats connection for the connectors
 func (bridge *BridgeServer) NATS() *nats.Conn {
+	bridge.natsLock.Lock()
+	defer bridge.natsLock.Unlock()
 	return bridge.nats
 }
 
 // Stan hosts a shared streaming connection for the connectors
 func (bridge *BridgeServer) Stan() stan.Conn {
+	bridge.natsLock.Lock()
+	defer bridge.natsLock.Unlock()
 	return bridge.stan
 }
 
@@ -233,42 +222,55 @@ func (bridge *BridgeServer) Logger() logging.Logger {
 	return bridge.logger
 }
 
+// CheckNATS returns true if the bridge is connected to nats
+func (bridge *BridgeServer) CheckNATS() bool {
+	bridge.natsLock.Lock()
+	defer bridge.natsLock.Unlock()
+
+	if bridge.nats != nil {
+		return bridge.nats.ConnectedUrl() != ""
+	}
+
+	return false
+}
+
+// CheckStan returns true if the bridge is connected to stan
+func (bridge *BridgeServer) CheckStan() bool {
+	bridge.natsLock.Lock()
+	defer bridge.natsLock.Unlock()
+
+	if bridge.nats != nil {
+		ok := bridge.nats.ConnectedUrl() != ""
+
+		if !ok {
+			return false
+		}
+	}
+
+	return bridge.stan != nil
+}
+
 // RegisterReplyInfo tracks incoming descriptions so that reply to values can be mapped correctly
 func (bridge *BridgeServer) RegisterReplyInfo(desc string, config conf.ConnectorConfig) {
 	bridge.replyToInfo[desc] = config
 }
 
+// assumes the lock is held by the caller
 func (bridge *BridgeServer) connectToNATS() error {
+	bridge.natsLock.Lock()
+	defer bridge.natsLock.Unlock()
+
 	bridge.logger.Noticef("connecting to NATS core")
 
 	config := bridge.config.NATS
 	options := []nats.Option{nats.MaxReconnects(config.MaxReconnects),
 		nats.ReconnectWait(time.Duration(config.ReconnectWait) * time.Millisecond),
 		nats.Timeout(time.Duration(config.ConnectTimeout) * time.Millisecond),
-		nats.ErrorHandler(func(nc *nats.Conn, sub *nats.Subscription, err error) {
-			bridge.logger.Errorf("nats error %s", err.Error())
-		}),
-		nats.DiscoveredServersHandler(func(nc *nats.Conn) {
-			bridge.logger.Debugf("discovered servers: %v\n", nc.DiscoveredServers())
-			bridge.logger.Debugf("known servers: %v\n", nc.Servers())
-		}),
-		nats.DisconnectHandler(func(nc *nats.Conn) {
-			if !bridge.running { // skip the lock, worst case we print something extra
-				return
-			}
-			bridge.logger.Debugf("nats connection disconnected")
-		}),
-		nats.ReconnectHandler(func(nc *nats.Conn) {
-			bridge.logger.Debugf("nats connection reconnected")
-		}),
-		nats.ClosedHandler(func(nc *nats.Conn) {
-			if bridge.running {
-				bridge.logger.Errorf("nats connection closed, shutting down bridge")
-				bridge.Lock()
-				go bridge.Stop()
-				bridge.Unlock()
-			}
-		}),
+		nats.ErrorHandler(bridge.natsError),
+		nats.DiscoveredServersHandler(bridge.natsDiscoveredServers),
+		nats.DisconnectHandler(bridge.natsDisconnected),
+		nats.ReconnectHandler(bridge.natsReconnected),
+		nats.ClosedHandler(bridge.natsClosed),
 	}
 
 	if config.TLS.Root != "" {
@@ -291,7 +293,14 @@ func (bridge *BridgeServer) connectToNATS() error {
 	return nil
 }
 
+// assumes the lock is held by the caller
 func (bridge *BridgeServer) connectToSTAN() error {
+	bridge.natsLock.Lock()
+	defer bridge.natsLock.Unlock()
+
+	if bridge.stan != nil {
+		return nil // already connected
+	}
 
 	if bridge.config.STAN.ClusterID == "" {
 		bridge.logger.Noticef("skipping NATS streaming connection, not configured")
@@ -306,6 +315,7 @@ func (bridge *BridgeServer) connectToSTAN() error {
 		stan.PubAckWait(time.Duration(config.PubAckWait)*time.Millisecond),
 		stan.MaxPubAcksInflight(config.MaxPubAcksInflight),
 		stan.ConnectWait(time.Duration(config.ConnectWait)*time.Millisecond),
+		stan.SetConnectionLostHandler(bridge.stanConnectionLost),
 		func(o *stan.Options) error {
 			o.DiscoverPrefix = config.DiscoverPrefix
 			return nil
@@ -316,4 +326,155 @@ func (bridge *BridgeServer) connectToSTAN() error {
 	bridge.stan = sc
 
 	return nil
+}
+
+// ConnectorError is called by a connector if it has a failure that requires a reconnect
+func (bridge *BridgeServer) ConnectorError(connector Connector, err error) {
+	if !bridge.checkRunning() {
+		return
+	}
+
+	bridge.reconnectLock.Lock()
+	defer bridge.reconnectLock.Unlock()
+
+	_, check := bridge.reconnect[connector.ID()]
+
+	if check {
+		return // we already have that connector, no need to stop or pring any messages
+	}
+
+	description := connector.String()
+	bridge.logger.Errorf("a connector error has occurred, trying to restart %s, %s", description, err.Error())
+
+	err = connector.Shutdown()
+
+	if err != nil {
+		bridge.logger.Warnf("error shutting down connector %s, trying to restart, %s", description, err.Error())
+	}
+
+	bridge.reconnect[connector.ID()] = connector
+
+	bridge.ensureReconnectTimer()
+}
+
+// checkConnections loops over the connections and has them each check check their requirements
+func (bridge *BridgeServer) checkConnections() {
+	bridge.logger.Warnf("checking connector requirements and will restart as needed.")
+
+	if !bridge.checkRunning() {
+		return
+	}
+
+	bridge.reconnectLock.Lock()
+	defer bridge.reconnectLock.Unlock()
+
+	for _, connector := range bridge.connectors {
+		_, check := bridge.reconnect[connector.ID()]
+
+		if check {
+			continue // we already have that connector, no need to stop or pring any messages
+		}
+
+		err := connector.CheckConnections()
+
+		if err == nil {
+			continue // connector is happy
+		}
+
+		description := connector.String()
+		bridge.logger.Errorf("a connector error has occurred, trying to restart %s, %s", description, err.Error())
+
+		err = connector.Shutdown()
+
+		if err != nil {
+			bridge.logger.Warnf("error shutting down connector %s, trying to restart, %s", description, err.Error())
+		}
+
+		bridge.reconnect[connector.ID()] = connector
+	}
+
+	bridge.ensureReconnectTimer()
+}
+
+// requires the reconnect lock be held by the caller
+// spawns a go routine that will acquire the lock for handling reconnect tasks
+func (bridge *BridgeServer) ensureReconnectTimer() {
+	if bridge.reconnectTimer != nil {
+		return
+	}
+
+	timer := newReconnectTimer()
+	bridge.reconnectTimer = timer
+
+	go func() {
+		var doReconnect bool
+		interval := bridge.config.ReconnectInterval
+
+		select {
+		case doReconnect = <-timer.After(time.Duration(interval) * time.Millisecond):
+			if !doReconnect {
+				return
+			}
+		}
+
+		bridge.reconnectLock.Lock()
+		defer bridge.reconnectLock.Unlock()
+
+		// Wait for nats to be reconnected
+		if !bridge.CheckNATS() {
+			bridge.logger.Noticef("nats connection is down, will try reconnecting to streaming and restarting connectors in %d milliseconds", interval)
+			bridge.reconnectTimer = nil
+			bridge.ensureReconnectTimer()
+		}
+
+		// Make sure stan is up, if it should be
+		if bridge.stan == nil {
+			bridge.logger.Noticef("trying to reconnect to nats streaming")
+			err := bridge.connectToSTAN() // this may be a no-op if bridge.stan == nil was true but is not true once we get the lock in the connect
+
+			if err != nil {
+				bridge.logger.Noticef("error restarting streaming connection, will retry in %d milliseconds", interval, err.Error())
+				bridge.reconnectTimer = nil
+				bridge.ensureReconnectTimer()
+			}
+		}
+
+		// Do all the reconnects
+		for id, connector := range bridge.reconnect {
+			bridge.logger.Noticef("trying to restart connector %s", connector.String())
+			err := connector.Start()
+
+			if err != nil {
+				bridge.logger.Noticef("error restarting connector %s, will retry in %d milliseconds, %s", connector.String(), interval, err.Error())
+				continue
+			}
+
+			delete(bridge.reconnect, id)
+		}
+
+		bridge.reconnectTimer = nil
+
+		if len(bridge.reconnect) > 0 {
+			bridge.ensureReconnectTimer()
+		}
+	}()
+}
+
+// locks the reconnect lock
+func (bridge *BridgeServer) stopReconnectTimer() {
+	bridge.reconnectLock.Lock()
+	defer bridge.reconnectLock.Unlock()
+
+	if bridge.reconnectTimer != nil {
+		bridge.reconnectTimer.Cancel()
+	}
+
+	bridge.reconnectTimer = nil
+}
+
+func (bridge *BridgeServer) checkReconnecting() bool {
+	bridge.reconnectLock.Lock()
+	reconnecting := len(bridge.reconnect) > 0
+	bridge.reconnectLock.Unlock()
+	return reconnecting
 }

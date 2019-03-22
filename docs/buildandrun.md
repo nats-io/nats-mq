@@ -181,3 +181,4 @@ We created the kdb file using `runmqakm -cert -export -db client_key.p12 -pw tru
 * Using docker for tests will eat up docker space, you may need to run `docker system prune` once in a while to clean this up. The symptom of a full cache will be that the tests take forever to run because they fail to run the MQ series server image and spend 30s trying to connect before failing.
 * `nats-mq/core/test_util.go` has the implementation used to run the nats server, the streaming server and the MQ image for each test.
 * A number of performance "tests" are provided in the `performance` folder.
+* The tests start and stop the MQ docker image repeatedly so can take over 5 minutes to run, you can use `docker ps` to keep an eye on things, images shouldn't last more than a couple minutes

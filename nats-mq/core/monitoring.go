@@ -154,9 +154,9 @@ func (bridge *BridgeServer) HandleRoot(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	bridge.Lock()
+	bridge.statsLock.Lock()
 	bridge.httpReqStats[RootPath]++
-	bridge.Unlock()
+	bridge.statsLock.Unlock()
 	fmt.Fprintf(w, `<html lang="en">
    <head>
     <link rel="shortcut icon" href="http://nats.io/img/favicon.ico">
@@ -177,10 +177,11 @@ func (bridge *BridgeServer) HandleRoot(w http.ResponseWriter, r *http.Request) {
 
 // HandleVarz returns statistics about the server.
 func (bridge *BridgeServer) HandleVarz(w http.ResponseWriter, r *http.Request) {
-	bridge.Lock()
+	bridge.statsLock.Lock()
 	bridge.httpReqStats[VarzPath]++
+	bridge.statsLock.Unlock()
+
 	stats := bridge.stats()
-	bridge.Unlock()
 
 	varzJSON, err := json.Marshal(stats)
 
@@ -196,18 +197,19 @@ func (bridge *BridgeServer) HandleVarz(w http.ResponseWriter, r *http.Request) {
 
 // HandleHealthz returns status 200.
 func (bridge *BridgeServer) HandleHealthz(w http.ResponseWriter, r *http.Request) {
-	bridge.Lock()
+	bridge.statsLock.Lock()
 	bridge.httpReqStats[HealthzPath]++
-	bridge.Unlock()
+	bridge.statsLock.Unlock()
 	w.WriteHeader(http.StatusOK)
 }
 
 // stats calculates the stats for the server and connectors
-// assumes that the lock is held by the caller
+// assumes that the running lock is held by the caller
 func (bridge *BridgeServer) stats() BridgeStats {
 	stats := BridgeStats{}
 
 	now := time.Now()
+
 	stats.StartTime = bridge.startTime.Unix()
 	stats.UpTime = now.Sub(bridge.startTime).String()
 	stats.ServerTime = now.Unix()
@@ -220,23 +222,25 @@ func (bridge *BridgeServer) stats() BridgeStats {
 
 	stats.HTTPRequests = map[string]int64{}
 
+	bridge.statsLock.Lock()
 	for k, v := range bridge.httpReqStats {
 		stats.HTTPRequests[k] = int64(v)
 	}
+	bridge.statsLock.Unlock()
 
 	return stats
 }
 
 // SafeStats grabs the lock then calls stats(), useful for tests
 func (bridge *BridgeServer) SafeStats() BridgeStats {
-	bridge.Lock()
-	bridge.Unlock()
+	bridge.runningLock.Lock()
+	bridge.runningLock.Unlock()
 	return bridge.stats()
 }
 
 // GetMonitoringRootURL returns the protocol://host:port for the monitoring server, useful for testing
 func (bridge *BridgeServer) GetMonitoringRootURL() string {
-	bridge.Lock()
-	bridge.Unlock()
+	bridge.runningLock.Lock()
+	bridge.runningLock.Unlock()
 	return bridge.monitoringURL
 }

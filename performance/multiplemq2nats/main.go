@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -17,28 +20,18 @@ var iterations int
 func main() {
 	flag.IntVar(&iterations, "i", 1000, "iterations, docker image defaults to 5000 in queue")
 	flag.Parse()
+	msg := strings.Repeat("stannats", 128) // 1024 bytes
 
-	msg := "hello world"
+	connect := []conf.ConnectorConfig{}
 
-	connect := []conf.ConnectorConfig{
-		{
-			Type:           "Queue2NATS",
-			Subject:        "test1",
-			Queue:          "DEV.QUEUE.1",
-			ExcludeHeaders: true,
-		},
-		{
-			Type:           "Queue2NATS",
-			Subject:        "test2",
-			Queue:          "DEV.QUEUE.2",
-			ExcludeHeaders: true,
-		},
-		{
-			Type:           "Queue2NATS",
-			Subject:        "test3",
-			Queue:          "DEV.QUEUE.3",
-			ExcludeHeaders: true,
-		},
+	for i := 1; i <= 50; i++ {
+		connect = append(connect, conf.ConnectorConfig{
+			Type:                  "Queue2NATS",
+			Subject:               fmt.Sprintf("test.%d", i),
+			Queue:                 fmt.Sprintf("TEST.QUEUE.%d", i),
+			ExcludeHeaders:        true,
+			MaxMQMessagesInFlight: 10,
+		})
 	}
 
 	// Start the infrastructure
@@ -46,7 +39,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error starting test environment, %s", err.Error())
 	}
-	defer tbs.Close()
 
 	start := time.Now()
 	done := make(chan bool)
@@ -61,7 +53,7 @@ func main() {
 			}
 
 			newCount := atomic.AddUint64(&count, 1)
-			if newCount%1000 == 0 {
+			if newCount%5000 == 0 {
 				log.Printf("received count = %d", count)
 			}
 
@@ -97,7 +89,14 @@ func main() {
 	<-done
 	end := time.Now()
 
+	stats := tbs.Bridge.SafeStats()
+	statsJSON, _ := json.MarshalIndent(stats, "", "    ")
+
+	// Close the test environ so we clean up the log
+	tbs.Close()
+
 	diff := end.Sub(start)
 	rate := float64(maxCount) / float64(diff.Seconds())
+	log.Printf("Bridge Stats:\n\n%s\n", statsJSON)
 	log.Printf("Read %d messages from %d MQ queues via a bridge to NATS in %s, or %.2f msgs/sec", maxCount, len(connect), diff, rate)
 }

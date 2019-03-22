@@ -16,7 +16,12 @@ import (
 type Connector interface {
 	Start() error
 	Shutdown() error
+
+	CheckConnections() error
+
 	String() string
+	ID() string
+
 	Stats() ConnectorStats
 }
 
@@ -61,6 +66,9 @@ type BridgeConnector struct {
 	stats  ConnectorStats
 
 	qMgr *ibmmq.MQQueueManager
+
+	inflight       int
+	inflightKicker <-chan time.Time
 }
 
 // Start is a no-op, designed for overriding
@@ -73,9 +81,28 @@ func (mq *BridgeConnector) Shutdown() error {
 	return nil
 }
 
+// CheckConnections is a no-op, designed for overriding
+// This is called when nats or stan goes down
+// the connector should return an error if it has to be shut down
+func (mq *BridgeConnector) CheckConnections() error {
+	return nil
+}
+
 // String returns the name passed into init
 func (mq *BridgeConnector) String() string {
 	return mq.stats.Name
+}
+
+// ID returns the id from the stats
+func (mq *BridgeConnector) ID() string {
+	return mq.stats.ID
+}
+
+// Stats returns a copy of the current stats for this connector
+func (mq *BridgeConnector) Stats() ConnectorStats {
+	mq.Lock()
+	defer mq.Unlock()
+	return mq.stats
 }
 
 // Init sets up common fields for all connectors
@@ -104,13 +131,6 @@ func (mq *BridgeConnector) connectToMQ() error {
 
 	mq.qMgr = qMgr
 	return nil
-}
-
-// Stats returns a copy of the current stats for this connector
-func (mq *BridgeConnector) Stats() ConnectorStats {
-	mq.Lock()
-	defer mq.Unlock()
-	return mq.stats
 }
 
 func (mq *BridgeConnector) connectToQueue(queueName string, openOptions int32) (*ibmmq.MQObject, error) {
@@ -159,7 +179,7 @@ func (mq *BridgeConnector) connectToTopic(topicName string) (*ibmmq.MQObject, er
 // The lock will be held by the caller!
 type NATSCallback func(natsMsg []byte, replyTo string) error
 
-func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback) (*ibmmq.MQCTLO, error) {
+func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (*ibmmq.MQCTLO, error) {
 	getmqmd := ibmmq.NewMQMD()
 	gmo := ibmmq.NewMQGMO()
 	gmo.Options = ibmmq.MQGMO_SYNCPOINT
@@ -179,7 +199,7 @@ func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback
 			}
 
 			err := fmt.Errorf("mq error in callback %s", mqErr.Error())
-			go mq.bridge.ConnectorError(Connector(mq), err)
+			go mq.bridge.ConnectorError(conn, err)
 			return
 		}
 
@@ -208,11 +228,38 @@ func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback
 			mq.bridge.Logger().Noticef("publish failure for %s, %s", mq.String(), err.Error())
 			mq.qMgr.Back()
 		} else {
-			mq.qMgr.Cmit()
+			mq.inflight++
+			maxInFlight := mq.config.MaxMQMessagesInFlight
+			if maxInFlight <= 0 || mq.inflight == maxInFlight {
+				mq.qMgr.Cmit()
+				mq.inflight = 0
+			} else if mq.inflightKicker == nil {
+				mq.inflightKicker = time.After(100 * time.Millisecond)
+				go func(mq *BridgeConnector) {
+					mq.Lock()
+					kicker := mq.inflightKicker
+					mq.Unlock()
+
+					if kicker == nil {
+						return
+					}
+
+					<-kicker
+
+					mq.Lock()
+					if mq.inflight > 0 && mq.qMgr != nil {
+						mq.qMgr.Cmit()
+					}
+					mq.inflight = 0
+					mq.inflightKicker = nil
+					mq.Unlock()
+				}(mq)
+			}
 			mq.stats.AddMessageOut(int64(len(natsMsg)))
 			mq.stats.AddRequestTime(time.Now().Sub(start))
 		}
 	}
+
 	err := target.CB(ibmmq.MQOP_REGISTER, cbd, getmqmd, gmo)
 
 	if err != nil {
@@ -220,6 +267,7 @@ func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback
 	}
 
 	ctlo := ibmmq.NewMQCTLO()
+	ctlo.Options = ibmmq.MQCTLO_FAIL_IF_QUIESCING
 	err = mq.qMgr.Ctl(ibmmq.MQOP_START, ctlo)
 	if err != nil {
 		return nil, err
@@ -302,7 +350,9 @@ func (mq *BridgeConnector) subscribeToChannel(dest *ibmmq.MQObject) (stan.Subscr
 		options = append(options, stan.DeliverAllAvailable())
 	}
 
-	sub, err := mq.bridge.Stan().Subscribe(mq.config.Channel, func(m *stan.Msg) {
+	options = append(options, stan.SetManualAckMode())
+
+	sub, err := mq.bridge.Stan().Subscribe(mq.config.Channel, func(msg *stan.Msg) {
 		mq.Lock()
 		defer mq.Unlock()
 		start := time.Now()
@@ -313,8 +363,8 @@ func (mq *BridgeConnector) subscribeToChannel(dest *ibmmq.MQObject) (stan.Subscr
 			qmgrFlag = nil
 		}
 
-		mq.stats.AddMessageIn(int64(len(m.Data)))
-		mqmd, handle, buffer, err := mq.bridge.NATSToMQMessage(m.Data, "", qmgrFlag)
+		mq.stats.AddMessageIn(int64(len(msg.Data)))
+		mqmd, handle, buffer, err := mq.bridge.NATSToMQMessage(msg.Data, "", qmgrFlag)
 		if err != nil {
 			mq.bridge.Logger().Noticef("message conversion failure, %s, %s", mq.String(), err.Error())
 			return
@@ -329,6 +379,7 @@ func (mq *BridgeConnector) subscribeToChannel(dest *ibmmq.MQObject) (stan.Subscr
 		if err != nil {
 			mq.bridge.Logger().Noticef("MQ put failure, %s, %s", mq.String(), err.Error())
 		} else {
+			msg.Ack()
 			mq.stats.AddMessageOut(int64(len(buffer)))
 			mq.stats.AddRequestTime(time.Now().Sub(start))
 		}

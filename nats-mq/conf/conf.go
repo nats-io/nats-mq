@@ -136,5 +136,6 @@ type ConnectorConfig struct {
 	Topic string   // Used for the mq side of things
 	Queue string
 
-	ExcludeHeaders bool //exclude headers, and just send the body to/from nats messages
+	MaxMQMessagesInFlight int
+	ExcludeHeaders        bool //exclude headers, and just send the body to/from nats messages
 }

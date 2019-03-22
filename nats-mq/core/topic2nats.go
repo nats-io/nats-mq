@@ -28,7 +28,7 @@ func (mq *Topic2NATSConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.bridge.NATS() == nil {
+	if !mq.bridge.CheckNATS() {
 		return fmt.Errorf("%s connector requires nats to be available", mq.String())
 	}
 
@@ -50,7 +50,7 @@ func (mq *Topic2NATSConnector) Start() error {
 
 	mq.bridge.Logger().Tracef("subscribed to %s", mq.config.Topic)
 
-	ctlo, err := mq.setUpCallback(mq.topic, mq.natsMessageHandler)
+	ctlo, err := mq.setUpCallback(mq.topic, mq.natsMessageHandler, mq)
 	if err != nil {
 		return err
 	}
@@ -117,4 +117,12 @@ func (mq *Topic2NATSConnector) Shutdown() error {
 	}
 
 	return nil //err // ignore the disconnect error
+}
+
+// CheckConnections ensures the nats/stan connection and report an error if it is down
+func (mq *Topic2NATSConnector) CheckConnections() error {
+	if !mq.bridge.CheckNATS() {
+		return fmt.Errorf("%s connector requires nats to be available", mq.String())
+	}
+	return nil
 }

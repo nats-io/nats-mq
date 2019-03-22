@@ -162,3 +162,88 @@ func TestSimpleSendOnQueueReceiveOnNatsWithTLS(t *testing.T) {
 	received := <-done
 	require.Equal(t, msg, received)
 }
+
+func TestMaxInFlightKicker(t *testing.T) {
+	subject := "test"
+	queue := "DEV.QUEUE.1"
+	msg := "hello world"
+
+	connect := []conf.ConnectorConfig{
+		{
+			Type:                  "Queue2NATS",
+			Subject:               subject,
+			Queue:                 queue,
+			ExcludeHeaders:        true,
+			MaxMQMessagesInFlight: 2, // we will only send one
+		},
+	}
+
+	tbs, err := StartTestEnvironment(connect)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	done := make(chan string)
+
+	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
+		done <- string(msg.Data)
+	})
+	defer sub.Unsubscribe()
+
+	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
+	require.NoError(t, err)
+
+	timer := time.NewTimer(3 * time.Second)
+	go func() {
+		<-timer.C
+		done <- ""
+	}()
+
+	received := <-done
+	require.Equal(t, msg, received)
+}
+
+func TestMaxInFlight(t *testing.T) {
+	subject := "test"
+	queue := "DEV.QUEUE.1"
+	msg := "hello world"
+
+	connect := []conf.ConnectorConfig{
+		{
+			Type:                  "Queue2NATS",
+			Subject:               subject,
+			Queue:                 queue,
+			ExcludeHeaders:        true,
+			MaxMQMessagesInFlight: 2,
+		},
+	}
+
+	tbs, err := StartTestEnvironment(connect)
+	require.NoError(t, err)
+	defer tbs.Close()
+
+	done := make(chan string)
+
+	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
+		done <- string(msg.Data)
+	})
+	defer sub.Unsubscribe()
+
+	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
+	require.NoError(t, err)
+
+	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
+	require.NoError(t, err)
+
+	timer := time.NewTimer(3 * time.Second)
+	go func() {
+		<-timer.C
+		done <- ""
+		done <- ""
+	}()
+
+	received := <-done
+	require.Equal(t, msg, received)
+
+	received = <-done
+	require.Equal(t, msg, received)
+}

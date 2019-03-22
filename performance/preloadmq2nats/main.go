@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
@@ -19,14 +21,15 @@ func main() {
 
 	subject := "test"
 	queue := "DEV.QUEUE.1"
-	msg := "hello world"
+	msg := strings.Repeat("stannats", 128) // 1024 bytes
 
 	connect := []conf.ConnectorConfig{
 		{
-			Type:           "Queue2NATS",
-			Subject:        subject,
-			Queue:          queue,
-			ExcludeHeaders: true,
+			Type:                  "Queue2NATS",
+			Subject:               subject,
+			Queue:                 queue,
+			ExcludeHeaders:        true,
+			MaxMQMessagesInFlight: 10,
 		},
 	}
 
@@ -35,7 +38,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error starting test environment, %s", err.Error())
 	}
-	defer tbs.Close()
 
 	mqod := ibmmq.NewMQOD()
 	openOptions := ibmmq.MQOO_OUTPUT
@@ -81,7 +83,14 @@ func main() {
 	<-done
 	end := time.Now()
 
+	stats := tbs.Bridge.SafeStats()
+	statsJSON, _ := json.MarshalIndent(stats, "", "    ")
+
+	// Close the test environ so we clean up the log
+	tbs.Close()
+
 	diff := end.Sub(start)
 	rate := float64(iterations) / float64(diff.Seconds())
-	log.Printf("Read %d messages from an MQ queue via a bridge to NATS in %s, or %.2f msgs/sec", iterations, diff, rate)
+	log.Printf("Bridge Stats:\n\n%s\n", statsJSON)
+	log.Printf("Read %d messages from an MQ queues via a bridge to NATS in %s, or %.2f msgs/sec", iterations, diff, rate)
 }

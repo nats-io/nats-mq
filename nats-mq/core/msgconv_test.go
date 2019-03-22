@@ -33,7 +33,7 @@ func TestExcludeHeadersIgnoresMQMD(t *testing.T) {
 
 func TestMQMDToNATSTranslation(t *testing.T) {
 	bridge := &BridgeServer{}
-	mqServer, qMgr, err := StartMQTestServer(5*time.Second, false)
+	mqServer, qMgr, err := StartMQTestServer(5*time.Second, false, 0)
 	require.NoError(t, err)
 	defer qMgr.Disc()
 	defer mqServer.Close()
@@ -193,7 +193,7 @@ func TestMQMDToNATSTranslation(t *testing.T) {
 
 func TestNATSToMQMDTranslation(t *testing.T) {
 	bridge := &BridgeServer{}
-	mqServer, qMgr, err := StartMQTestServer(5*time.Second, false)
+	mqServer, qMgr, err := StartMQTestServer(5*time.Second, false, 0)
 	require.NoError(t, err)
 	defer qMgr.Disc()
 	defer mqServer.Close()

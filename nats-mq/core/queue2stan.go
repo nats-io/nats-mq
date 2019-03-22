@@ -18,7 +18,7 @@ type Queue2STANConnector struct {
 // NewQueue2STANConnector create a new MQ to Stan connector
 func NewQueue2STANConnector(bridge *BridgeServer, config conf.ConnectorConfig) Connector {
 	connector := &Queue2STANConnector{}
-	connector.init(bridge, config, fmt.Sprintf("Queue:%s to STAN:%s", config.Queue, config.Subject))
+	connector.init(bridge, config, fmt.Sprintf("Queue:%s to STAN:%s", config.Queue, config.Channel))
 	return connector
 }
 
@@ -27,7 +27,7 @@ func (mq *Queue2STANConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.bridge.Stan() == nil {
+	if !mq.bridge.CheckStan() {
 		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
 	}
 
@@ -46,7 +46,7 @@ func (mq *Queue2STANConnector) Start() error {
 
 	mq.queue = qObject
 
-	ctlo, err := mq.setUpCallback(mq.queue, mq.stanMessageHandler)
+	ctlo, err := mq.setUpCallback(mq.queue, mq.stanMessageHandler, mq)
 	if err != nil {
 		return err
 	}
@@ -88,4 +88,12 @@ func (mq *Queue2STANConnector) Shutdown() error {
 	}
 
 	return err // ignore the disconnect error
+}
+
+// CheckConnections ensures the nats/stan connection and report an error if it is down
+func (mq *Queue2STANConnector) CheckConnections() error {
+	if !mq.bridge.CheckStan() {
+		return fmt.Errorf("%s connector requires nats streaming to be available", mq.String())
+	}
+	return nil
 }

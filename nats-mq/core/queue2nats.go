@@ -27,7 +27,7 @@ func (mq *Queue2NATSConnector) Start() error {
 	mq.Lock()
 	defer mq.Unlock()
 
-	if mq.bridge.NATS() == nil {
+	if !mq.bridge.CheckNATS() {
 		return fmt.Errorf("%s connector requires nats to be available", mq.String())
 	}
 
@@ -46,7 +46,7 @@ func (mq *Queue2NATSConnector) Start() error {
 
 	mq.queue = qObject
 
-	ctlo, err := mq.setUpCallback(mq.queue, mq.natsMessageHandler)
+	ctlo, err := mq.setUpCallback(mq.queue, mq.natsMessageHandler, mq)
 	if err != nil {
 		return err
 	}
@@ -89,4 +89,12 @@ func (mq *Queue2NATSConnector) Shutdown() error {
 	}
 
 	return err // ignore the disconnect error
+}
+
+// CheckConnections ensures the nats/stan connection and report an error if it is down
+func (mq *Queue2NATSConnector) CheckConnections() error {
+	if !mq.bridge.CheckNATS() {
+		return fmt.Errorf("%s connector requires nats to be available", mq.String())
+	}
+	return nil
 }

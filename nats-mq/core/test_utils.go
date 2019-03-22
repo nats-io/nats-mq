@@ -3,10 +3,12 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,9 +33,11 @@ type TestEnv struct {
 	NC *nats.Conn // for bypassing the bridge
 	SC stan.Conn  // for bypassing the bridge
 
-	natsURL     string
-	clusterName string
-	clientID    string // we keep this so we stay the same on reconnect
+	natsPort       int
+	natsURL        string
+	clusterName    string
+	clientID       string // we keep this so we stay the same on reconnect
+	bridgeClientID string
 
 	Bridge *BridgeServer
 	Config *conf.BridgeConfig
@@ -74,81 +78,18 @@ func StartTLSTestEnvironment(connections []conf.ConnectorConfig) (*TestEnv, erro
 func StartTestEnvironmentInfrastructure(useTLS bool) (*TestEnv, error) {
 	tbs := &TestEnv{}
 
-	mqServer, qmgr, err := StartMQTestServer(30*time.Second, useTLS)
+	mqServer, qmgr, err := StartMQTestServer(30*time.Second, useTLS, 0) // port 0 -> ephemeral
 	if err != nil {
 		return nil, err
 	}
 	tbs.MQServer = mqServer
 	tbs.QMgr = qmgr
 
-	opts := gnatsd.DefaultTestOptions
-	opts.Port = -1
-
-	if useTLS {
-		opts.TLSCert = "../../resources/certs/server-cert.pem"
-		opts.TLSKey = "../../resources/certs/server-key.pem"
-		opts.TLSTimeout = 5
-
-		tc := gnatsserver.TLSConfigOpts{}
-		tc.CertFile = opts.TLSCert
-		tc.KeyFile = opts.TLSKey
-
-		opts.TLSConfig, err = gnatsserver.GenTLSConfig(&tc)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-	tbs.Gnatsd = gnatsd.RunServer(&opts)
-
-	if useTLS {
-		tbs.natsURL = fmt.Sprintf("tls://localhost:%d", opts.Port)
-	} else {
-		tbs.natsURL = fmt.Sprintf("nats://localhost:%d", opts.Port)
-	}
-
-	tbs.clusterName = nuid.Next()
-	sOpts := nss.GetDefaultOptions()
-	sOpts.ID = tbs.clusterName
-	sOpts.NATSServerURL = tbs.natsURL
-
-	if useTLS {
-		sOpts.ClientCA = "../../resources/certs/ca.pem"
-	}
-
-	nOpts := nss.DefaultNatsServerOptions
-	nOpts.Port = -1
-
-	s, err := nss.RunServerWithOpts(sOpts, &nOpts)
+	err = tbs.StartNATSandStan(useTLS, -1, nuid.Next(), nuid.Next(), nuid.Next())
 	if err != nil {
 		tbs.Close()
 		return nil, err
 	}
-
-	tbs.Stan = s
-	tbs.clientID = nuid.Next()
-
-	var nc *nats.Conn
-
-	if useTLS {
-		nc, err = nats.Connect(tbs.natsURL, nats.RootCAs("../../resources/certs/ca.pem"))
-	} else {
-		nc, err = nats.Connect(tbs.natsURL)
-	}
-
-	if err != nil {
-		tbs.Close()
-		return nil, err
-	}
-
-	tbs.NC = nc
-
-	sc, err := stan.Connect(tbs.clusterName, nuid.Next(), stan.NatsConn(tbs.NC))
-	if err != nil {
-		tbs.Close()
-		return nil, err
-	}
-	tbs.SC = sc
 
 	return tbs, nil
 }
@@ -157,6 +98,8 @@ func StartTestEnvironmentInfrastructure(useTLS bool) (*TestEnv, error) {
 // it is provided separately so that environment can be created before the bridge runs
 func (tbs *TestEnv) StartBridge(connections []conf.ConnectorConfig, useTLS bool) error {
 	config := conf.DefaultBridgeConfig()
+	//config.Logging.Debug = true
+	//config.Logging.Trace = true
 	config.Monitoring = conf.MonitoringConfig{
 		HTTPPort: -1,
 	}
@@ -168,7 +111,7 @@ func (tbs *TestEnv) StartBridge(connections []conf.ConnectorConfig, useTLS bool)
 	}
 	config.STAN = conf.NATSStreamingConfig{
 		ClusterID:          tbs.clusterName,
-		ClientID:           tbs.clientID,
+		ClientID:           tbs.bridgeClientID,
 		PubAckWait:         5000,
 		DiscoverPrefix:     stan.DefaultDiscoverPrefix,
 		MaxPubAcksInflight: stan.DefaultMaxPubAcksInflight,
@@ -230,12 +173,153 @@ func (tbs *TestEnv) StartBridge(connections []conf.ConnectorConfig, useTLS bool)
 	return nil
 }
 
+// StartNATSandStan starts up the nats and stan servers
+func (tbs *TestEnv) StartNATSandStan(useTLS bool, port int, clusterID string, clientID string, bridgeClientID string) error {
+	var err error
+	opts := gnatsd.DefaultTestOptions
+	opts.Port = port
+
+	if useTLS {
+		opts.TLSCert = "../../resources/certs/server-cert.pem"
+		opts.TLSKey = "../../resources/certs/server-key.pem"
+		opts.TLSTimeout = 5
+
+		tc := gnatsserver.TLSConfigOpts{}
+		tc.CertFile = opts.TLSCert
+		tc.KeyFile = opts.TLSKey
+
+		opts.TLSConfig, err = gnatsserver.GenTLSConfig(&tc)
+
+		if err != nil {
+			return err
+		}
+	}
+	tbs.Gnatsd = gnatsd.RunServer(&opts)
+
+	if useTLS {
+		tbs.natsURL = fmt.Sprintf("tls://localhost:%d", opts.Port)
+	} else {
+		tbs.natsURL = fmt.Sprintf("nats://localhost:%d", opts.Port)
+	}
+
+	tbs.natsPort = opts.Port
+	tbs.clusterName = clusterID
+	sOpts := nss.GetDefaultOptions()
+	sOpts.ID = tbs.clusterName
+	sOpts.NATSServerURL = tbs.natsURL
+
+	if useTLS {
+		sOpts.ClientCA = "../../resources/certs/ca.pem"
+	}
+
+	nOpts := nss.DefaultNatsServerOptions
+	nOpts.Port = -1
+
+	s, err := nss.RunServerWithOpts(sOpts, &nOpts)
+	if err != nil {
+		return err
+	}
+
+	tbs.Stan = s
+	tbs.clientID = clientID
+	tbs.bridgeClientID = bridgeClientID
+
+	var nc *nats.Conn
+
+	if useTLS {
+		nc, err = nats.Connect(tbs.natsURL, nats.RootCAs("../../resources/certs/ca.pem"))
+	} else {
+		nc, err = nats.Connect(tbs.natsURL)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	tbs.NC = nc
+
+	sc, err := stan.Connect(tbs.clusterName, tbs.clientID, stan.NatsConn(tbs.NC))
+	if err != nil {
+		return err
+	}
+	tbs.SC = sc
+
+	return nil
+}
+
 // StopBridge stops the bridge
 func (tbs *TestEnv) StopBridge() {
 	if tbs.Bridge != nil {
 		tbs.Bridge.Stop()
 		tbs.Bridge = nil
 	}
+}
+
+// RestartMQ shuts down the MQ server and then starts it again
+func (tbs *TestEnv) RestartMQ(useTLS bool) error {
+	if tbs.QMgr != nil {
+		tbs.QMgr.Disc()
+	}
+
+	if tbs.MQServer != nil {
+		tbs.MQServer.Close()
+	}
+
+	mqServer, qmgr, err := StartMQTestServer(30*time.Second, useTLS, tbs.MQServer.AppPort)
+	if err != nil {
+		return err
+	}
+	tbs.MQServer = mqServer
+	tbs.QMgr = qmgr
+
+	return nil
+}
+
+// StopNATS shuts down the NATS and Stan servers
+func (tbs *TestEnv) StopNATS() error {
+	if tbs.SC != nil {
+		tbs.SC.Close()
+	}
+
+	if tbs.NC != nil {
+		tbs.NC.Close()
+	}
+
+	if tbs.Stan != nil {
+		tbs.Stan.Shutdown()
+	}
+
+	if tbs.Gnatsd != nil {
+		tbs.Gnatsd.Shutdown()
+	}
+
+	return nil
+}
+
+// RestartNATS shuts down the NATS and stan server and then starts it again
+func (tbs *TestEnv) RestartNATS(useTLS bool) error {
+	if tbs.SC != nil {
+		tbs.SC.Close()
+	}
+
+	if tbs.NC != nil {
+		tbs.NC.Close()
+	}
+
+	if tbs.Stan != nil {
+		tbs.Stan.Shutdown()
+	}
+
+	if tbs.Gnatsd != nil {
+		tbs.Gnatsd.Shutdown()
+	}
+
+	err := tbs.StartNATSandStan(useTLS, tbs.natsPort, tbs.clusterName, tbs.clientID, tbs.bridgeClientID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetQueueManagerName get the queue manager name for the test MQ server
@@ -323,6 +407,10 @@ func (tbs *TestEnv) Close() {
 	if tbs.Stan != nil {
 		tbs.Stan.Shutdown()
 	}
+
+	if tbs.Gnatsd != nil {
+		tbs.Gnatsd.Shutdown()
+	}
 }
 
 // MQTestServer is based on - https://ericchiang.github.io/post/testing-dbs-with-docker/
@@ -332,10 +420,11 @@ type MQTestServer struct {
 	CID          string
 	AppHostPort  string
 	WebHostPort  string
+	AppPort      int
 }
 
 //StartMQTestServer creates a test db in docker
-func StartMQTestServer(waitForStart time.Duration, useTLS bool) (*MQTestServer, *ibmmq.MQQueueManager, error) {
+func StartMQTestServer(waitForStart time.Duration, useTLS bool, mqPort int) (*MQTestServer, *ibmmq.MQQueueManager, error) {
 	start := time.Now()
 	img := "ibmcom/mq"
 
@@ -344,11 +433,30 @@ func StartMQTestServer(waitForStart time.Duration, useTLS bool) (*MQTestServer, 
 	}
 
 	// Running on port 0 instructs the operating system to pick an available port.
-	dockerArgs := []string{"run", "--publish", "0:1414", "--publish", "0:9443", "--detach"}
+	dockerArgs := []string{"run", "--publish", fmt.Sprintf("%d:1414", mqPort), "--publish", "0:9443", "--detach"}
 	envvars := map[string]string{
 		"LICENSE":      "accept",
 		"MQ_QMGR_NAME": "QM1",
 	}
+
+	dir, err := ioutil.TempDir("/tmp", "mqdata")
+	extraQueues := ""
+
+	// Add the queues
+	testQueues := 50
+	for i := 1; i <= testQueues; i++ {
+		extraQueues += fmt.Sprintf("DEFINE QLOCAL(TEST.QUEUE.%d) REPLACE\n", i)
+	}
+
+	// set the permissions
+	for i := 1; i <= testQueues; i++ {
+		extraQueues += fmt.Sprintf("SET AUTHREC PROFILE('TEST.QUEUE.%d') OBJTYPE(QUEUE) PRINCIPAL('app') AUTHADD(BROWSE, GET, PUT, INQ)\n", i)
+	}
+
+	extraQueueFile := filepath.Join(dir, "20-config.mqsc")
+	ioutil.WriteFile(extraQueueFile, []byte(extraQueues), 0644)
+
+	dockerArgs = append(dockerArgs, "--volume", fmt.Sprintf("%s:%s", extraQueueFile, "/etc/mqm/20-config.mqsc"))
 
 	if useTLS {
 		pwd, err := os.Getwd()
@@ -383,6 +491,11 @@ func StartMQTestServer(waitForStart time.Duration, useTLS bool) (*MQTestServer, 
 	mq := &MQTestServer{CID: cid, QueueManager: "QM1"}
 
 	_, port, err := mq.portMapping("1414/tcp")
+	if err != nil {
+		mq.Close()
+		return nil, nil, err
+	}
+	mq.AppPort, err = strconv.Atoi(port)
 	if err != nil {
 		mq.Close()
 		return nil, nil, err
