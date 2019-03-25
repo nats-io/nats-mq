@@ -68,7 +68,7 @@ func (mq *Queue2STANConnector) Shutdown() error {
 
 	if mq.shutdownCB != nil {
 		if err := mq.shutdownCB(); err != nil {
-			mq.bridge.Logger().Noticef("unable to stop listener for %s", mq.String())
+			mq.bridge.Logger().Noticef("error stopping listener for %s, %s", mq.String(), err.Error())
 		}
 	}
 

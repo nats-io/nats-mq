@@ -30,7 +30,7 @@ func main() {
 			Subject:               fmt.Sprintf("test.%d", i),
 			Queue:                 fmt.Sprintf("TEST.QUEUE.%d", i),
 			ExcludeHeaders:        true,
-			MaxMQMessagesInFlight: 10,
+			MaxMQMessagesInFlight: 25,
 		})
 	}
 
