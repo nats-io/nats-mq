@@ -1,0 +1,36 @@
+apply plugin: 'java'
+
+version = '1.0'
+
+archivesBaseName = 'mq-nats'
+group = 'io.nats'
+description = "MQ-NATS bridge helper for Java"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.msgpack:jackson-dataformat-msgpack:0.7.1'
+    compile 'com.fasterxml.jackson.core:jackson-annotations'
+    testImplementation 'junit:junit:4.12'
+}
+
+jar {
+    manifest {
+        attributes('Implementation-Title': 'Java MQ-NATS Bridge Helpers',
+                   'Implementation-Version': '1.0',
+                   'Implementation-Vendor': 'synadia.com')
+    }
+}
+
+task fatJar(type: Jar) {
+    classifier = 'fat'
+    manifest {
+        attributes('Implementation-Title': 'Java MQ-NATS Bridge Helpers',
+                   'Implementation-Version': '1.0',
+                   'Implementation-Vendor': 'synadia.com')
+    }
+    from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}

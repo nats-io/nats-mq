@@ -49,42 +49,42 @@ const (
 
 // BridgeHeader maps to an MQMD struct in the MQ messages
 type BridgeHeader struct {
-	Version          int32
-	Report           int32
-	MsgType          int32
-	Expiry           int32
-	Feedback         int32
-	Encoding         int32
-	CodedCharSetID   int32
-	Format           string
-	Priority         int32
-	Persistence      int32
-	MsgID            []byte
-	CorrelID         []byte
-	BackoutCount     int32
-	ReplyToQ         string
-	ReplyToQMgr      string
-	UserIdentifier   string
-	AccountingToken  []byte
-	ApplIdentityData string
-	PutApplType      int32
-	PutApplName      string
-	PutDate          string
-	PutTime          string
-	ApplOriginData   string
-	GroupID          []byte
-	MsgSeqNumber     int32
-	Offset           int32
-	MsgFlags         int32
-	OriginalLength   int32
-	ReplyToChannel   string
+	Version          int32  `codec:"version,omitempty"`
+	Report           int32  `codec:"report,omitempty"`
+	MsgType          int32  `codec:"type,omitempty"`
+	Expiry           int32  `codec:"exp,omitempty"`
+	Feedback         int32  `codec:"feed,omitempty"`
+	Encoding         int32  `codec:"enc,omitempty"`
+	CodedCharSetID   int32  `codec:"charset,omitempty"`
+	Format           string `codec:"format,omitempty"`
+	Priority         int32  `codec:"priority,omitempty"`
+	Persistence      int32  `codec:"persist,omitempty"`
+	MsgID            []byte `codec:"msg_id,omitempty"`
+	CorrelID         []byte `codec:"corr_id,omitempty"`
+	BackoutCount     int32  `codec:"backout,omitempty"`
+	ReplyToQ         string `codec:"rep_q,omitempty"`
+	ReplyToQMgr      string `codec:"rep_qmgr,omitempty"`
+	UserIdentifier   string `codec:"user_id,omitempty"`
+	AccountingToken  []byte `codec:"acct_token,omitempty"`
+	ApplIdentityData string `codec:"appl_id,omitempty"`
+	PutApplType      int32  `codec:"appl_type,omitempty"`
+	PutApplName      string `codec:"appl_name,omitempty"`
+	PutDate          string `codec:"date,omitempty"`
+	PutTime          string `codec:"time,omitempty"`
+	ApplOriginData   string `codec:"appl_orig_data,omitempty"`
+	GroupID          []byte `codec:"grp_id,omitempty"`
+	MsgSeqNumber     int32  `codec:"seq,omitempty"`
+	Offset           int32  `codec:"offset,omitempty"`
+	MsgFlags         int32  `codec:"flags,omitempty"`
+	OriginalLength   int32  `codec:"orig_length,omitempty"`
+	ReplyToChannel   string `codec:"reply_to_channel,omitempty"`
 }
 
 // Property wraps a typed property to allow proper round/trip support
 // with MQ in the bridge
 type Property struct {
-	Type  int
-	Value interface{}
+	Type  int         `codec:"type,omitempty"`
+	Value interface{} `codec:"value,omitempty"`
 }
 
 // Properties is a wrapper for a map of named properties
@@ -92,9 +92,9 @@ type Properties map[string]Property
 
 // BridgeMessage is the NATS-side wrapper for the mq message
 type BridgeMessage struct {
+	Body       []byte       `codec:"body,omitempty"`
 	Header     BridgeHeader `codec:"header,omitempty"`
 	Properties Properties   `codec:"props,omitempty"`
-	Body       []byte       `codec:"body,omitempty"`
 }
 
 // NewBridgeMessage creates an empty message with the provided body, the header is empty

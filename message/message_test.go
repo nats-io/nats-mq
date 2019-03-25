@@ -1,6 +1,7 @@
 package message
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,7 @@ func TestNilDecode(t *testing.T) {
 }
 
 func TestPropertyTypes(t *testing.T) {
-	msg := NewBridgeMessage(nil)
+	msg := NewBridgeMessage([]byte("hello world"))
 
 	expected := map[string]interface{}{
 		"string":  "hello world",
@@ -286,4 +287,36 @@ func TestBadPropertyValues(t *testing.T) {
 	}
 	_, ok = msg.GetFloat64Property("test")
 	require.False(t, ok)
+}
+
+func TestMessageInterchange(t *testing.T) {
+
+	encoded, err := ioutil.ReadFile("../resources/interchange.bin")
+	require.NoError(t, err)
+
+	msg, err := DecodeBridgeMessage(encoded)
+	require.NoError(t, err)
+
+	expected := map[string]interface{}{
+		"string":  "hello world",
+		"int8":    int8(9),
+		"int16":   int16(259),
+		"int32":   int32(222222222),
+		"int64":   int64(222222222222222222),
+		"float32": float32(3.14),
+		"float64": float64(6.4999),
+		"bool":    true,
+		"bytes":   []byte("one two three four"),
+	}
+
+	for k, v := range expected {
+		actual, ok := msg.GetTypedProperty(k)
+		require.True(t, ok)
+		require.Equal(t, v, actual)
+	}
+
+	require.Equal(t, "hello world", string(msg.Body))
+	require.Equal(t, int32(1), msg.Header.Version)
+	require.Equal(t, int32(2), msg.Header.Report)
+	require.Equal(t, "cafebabe", string(msg.Header.MsgID))
 }

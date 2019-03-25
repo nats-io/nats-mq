@@ -12,5 +12,13 @@ cov/
 .idea/
 .vscode/
 
+# Java
+helpers/java/.gradle/
+helpers/java/bin/
+helpers/java/build/
+helpers/java/.classpath
+helpers/java/.project
+helpers/java/.settings
+
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
