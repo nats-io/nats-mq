@@ -179,7 +179,15 @@ func (mq *BridgeConnector) connectToTopic(topicName string) (*ibmmq.MQObject, er
 // The lock will be held by the caller!
 type NATSCallback func(natsMsg []byte, replyTo string) error
 
-func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (*ibmmq.MQCTLO, error) {
+// ShutdownCallback is returned when setting up a callback or polling so the connector can shut it down
+type ShutdownCallback func() error
+
+func (mq *BridgeConnector) setUpListener(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (ShutdownCallback, error) {
+	return mq.setUpCallback(target, cb, conn)
+	//return mq.setUpPolling(target, cb, conn)
+}
+
+func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (ShutdownCallback, error) {
 	getmqmd := ibmmq.NewMQMD()
 	gmo := ibmmq.NewMQGMO()
 	gmo.Options = ibmmq.MQGMO_SYNCPOINT
@@ -187,7 +195,76 @@ func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback
 	gmo.Options |= ibmmq.MQGMO_FAIL_IF_QUIESCING
 
 	cbd := ibmmq.NewMQCBD()
-	cbd.CallbackFunction = func(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
+	cbd.CallbackFunction = mq.createMQCallback(cb, conn)
+
+	err := target.CB(ibmmq.MQOP_REGISTER, cbd, getmqmd, gmo)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ctlo := ibmmq.NewMQCTLO()
+	ctlo.Options = ibmmq.MQCTLO_FAIL_IF_QUIESCING
+	err = mq.qMgr.Ctl(ibmmq.MQOP_START, ctlo)
+	if err != nil {
+		return nil, err
+	}
+
+	return func() error {
+		return mq.qMgr.Ctl(ibmmq.MQOP_STOP, ctlo)
+	}, nil
+}
+
+func (mq *BridgeConnector) setUpPolling(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (ShutdownCallback, error) {
+	bufferSize := mq.config.IncomingBufferSize
+	if bufferSize == 0 {
+		bufferSize = 1024
+	}
+	buffer := make([]byte, bufferSize)
+
+	waitTimeout := int32(mq.config.IncomingMessageWait)
+	if waitTimeout == 0 {
+		waitTimeout = int32(500)
+	}
+	running := true
+	done := make(chan bool)
+	callback := mq.createMQCallback(cb, conn)
+
+	go func() {
+		for running {
+			mqmd := ibmmq.NewMQMD()
+			gmo := ibmmq.NewMQGMO()
+			gmo.Options = ibmmq.MQGMO_SYNCPOINT
+			gmo.Options |= ibmmq.MQGMO_WAIT
+			gmo.Options |= ibmmq.MQGMO_FAIL_IF_QUIESCING
+			gmo.WaitInterval = waitTimeout
+			len, err := target.Get(mqmd, gmo, buffer)
+
+			if err != nil {
+				mqret := err.(*ibmmq.MQReturn)
+				if mqret.MQRC != ibmmq.MQRC_NO_MSG_AVAILABLE {
+					callback(target, mqmd, gmo, buffer[0:len], nil, mqret)
+				}
+			} else {
+				callback(target, mqmd, gmo, buffer, nil, nil)
+			}
+
+			select {
+			case <-done:
+				running = false
+			default:
+			}
+		}
+	}()
+
+	return func() error {
+		close(done)
+		return nil
+	}, nil
+}
+
+func (mq *BridgeConnector) createMQCallback(cb NATSCallback, conn Connector) func(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
+	return func(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
 		mq.Lock()
 		defer mq.Unlock()
 		start := time.Now()
@@ -259,21 +336,6 @@ func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback
 			mq.stats.AddRequestTime(time.Now().Sub(start))
 		}
 	}
-
-	err := target.CB(ibmmq.MQOP_REGISTER, cbd, getmqmd, gmo)
-
-	if err != nil {
-		return nil, err
-	}
-
-	ctlo := ibmmq.NewMQCTLO()
-	ctlo.Options = ibmmq.MQCTLO_FAIL_IF_QUIESCING
-	err = mq.qMgr.Ctl(ibmmq.MQOP_START, ctlo)
-	if err != nil {
-		return nil, err
-	}
-
-	return ctlo, nil
 }
 
 func (mq *BridgeConnector) stanMessageHandler(natsMsg []byte, replyTo string) error {

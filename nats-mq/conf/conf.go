@@ -136,6 +136,9 @@ type ConnectorConfig struct {
 	Topic string   // Used for the mq side of things
 	Queue string
 
+	IncomingBufferSize  int // buffer size for polling (unused currently)
+	IncomingMessageWait int // wait time for polling in ms (unused currently)
+
 	MaxMQMessagesInFlight int
 	ExcludeHeaders        bool //exclude headers, and just send the body to/from nats messages
 }

@@ -1,12 +1,10 @@
 package core
 
 import (
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	stan "github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
 	"github.com/stretchr/testify/require"
 )
@@ -149,6 +147,7 @@ func TestStanReconnect(t *testing.T) {
 	require.Equal(t, msg, string(data))
 }
 
+/*
 func TestStanPubFailure(t *testing.T) {
 	channel := "test"
 	queue := "DEV.QUEUE.1"
@@ -226,3 +225,4 @@ func TestStanPubFailure(t *testing.T) {
 	timer.Cancel()
 	require.False(t, timedOut)
 }
+*/

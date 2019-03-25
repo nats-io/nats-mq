@@ -443,7 +443,7 @@ func StartMQTestServer(waitForStart time.Duration, useTLS bool, mqPort int) (*MQ
 	extraQueues := ""
 
 	// Add the queues
-	testQueues := 50
+	testQueues := 25
 	for i := 1; i <= testQueues; i++ {
 		extraQueues += fmt.Sprintf("DEFINE QLOCAL(TEST.QUEUE.%d) REPLACE\n", i)
 	}

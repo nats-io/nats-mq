@@ -11,8 +11,8 @@ import (
 type Queue2NATSConnector struct {
 	BridgeConnector
 
-	queue *ibmmq.MQObject
-	ctlo  *ibmmq.MQCTLO
+	queue      *ibmmq.MQObject
+	shutdownCB ShutdownCallback
 }
 
 // NewQueue2NATSConnector create a new MQ to Stan connector
@@ -46,11 +46,11 @@ func (mq *Queue2NATSConnector) Start() error {
 
 	mq.queue = qObject
 
-	ctlo, err := mq.setUpCallback(mq.queue, mq.natsMessageHandler, mq)
+	cb, err := mq.setUpListener(mq.queue, mq.natsMessageHandler, mq)
 	if err != nil {
 		return err
 	}
-	mq.ctlo = ctlo
+	mq.shutdownCB = cb
 
 	mq.stats.AddConnect()
 	mq.bridge.Logger().Tracef("opened and reading %s", mq.config.Queue)
@@ -67,9 +67,9 @@ func (mq *Queue2NATSConnector) Shutdown() error {
 
 	mq.bridge.Logger().Noticef("shutting down connection %s", mq.String())
 
-	if mq.ctlo != nil {
-		if err := mq.qMgr.Ctl(ibmmq.MQOP_STOP, mq.ctlo); err != nil {
-			mq.bridge.Logger().Noticef("unable to stop callbacks for %s", mq.String())
+	if mq.shutdownCB != nil {
+		if err := mq.shutdownCB(); err != nil {
+			mq.bridge.Logger().Noticef("unable to stop listener for %s", mq.String())
 		}
 	}
 
@@ -79,10 +79,12 @@ func (mq *Queue2NATSConnector) Shutdown() error {
 	mq.queue = nil
 
 	if queue != nil {
+		mq.bridge.Logger().Noticef("shutting down queue")
 		err = queue.Close(0)
 	}
 
 	if mq.qMgr != nil {
+		mq.bridge.Logger().Noticef("shutting down qmgr")
 		_ = mq.qMgr.Disc()
 		mq.qMgr = nil
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())

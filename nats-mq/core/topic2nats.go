@@ -11,9 +11,9 @@ import (
 type Topic2NATSConnector struct {
 	BridgeConnector
 
-	ctlo  *ibmmq.MQCTLO
-	topic *ibmmq.MQObject
-	sub   *ibmmq.MQObject
+	topic      *ibmmq.MQObject
+	sub        *ibmmq.MQObject
+	shutdownCB ShutdownCallback
 }
 
 // NewTopic2NATSConnector create a new MQ to Stan connector
@@ -50,11 +50,11 @@ func (mq *Topic2NATSConnector) Start() error {
 
 	mq.bridge.Logger().Tracef("subscribed to %s", mq.config.Topic)
 
-	ctlo, err := mq.setUpCallback(mq.topic, mq.natsMessageHandler, mq)
+	cb, err := mq.setUpListener(mq.topic, mq.natsMessageHandler, mq)
 	if err != nil {
 		return err
 	}
-	mq.ctlo = ctlo
+	mq.shutdownCB = cb
 
 	mq.stats.AddConnect()
 	mq.bridge.Logger().Tracef("opened and subscribed to %s", mq.config.Topic)
@@ -75,9 +75,9 @@ func (mq *Topic2NATSConnector) Shutdown() error {
 
 	mq.bridge.Logger().Noticef("shutting down connection %s", mq.String())
 
-	if mq.ctlo != nil {
-		if err := mq.qMgr.Ctl(ibmmq.MQOP_STOP, mq.ctlo); err != nil {
-			mq.bridge.Logger().Noticef("unable to stop callbacks for %s", mq.String())
+	if mq.shutdownCB != nil {
+		if err := mq.shutdownCB(); err != nil {
+			mq.bridge.Logger().Noticef("unable to stop listener for %s", mq.String())
 		}
 	}
 

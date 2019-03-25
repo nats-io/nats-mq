@@ -11,8 +11,8 @@ import (
 type Queue2STANConnector struct {
 	BridgeConnector
 
-	queue *ibmmq.MQObject
-	ctlo  *ibmmq.MQCTLO
+	queue      *ibmmq.MQObject
+	shutdownCB ShutdownCallback
 }
 
 // NewQueue2STANConnector create a new MQ to Stan connector
@@ -46,11 +46,11 @@ func (mq *Queue2STANConnector) Start() error {
 
 	mq.queue = qObject
 
-	ctlo, err := mq.setUpCallback(mq.queue, mq.stanMessageHandler, mq)
+	cb, err := mq.setUpListener(mq.queue, mq.stanMessageHandler, mq)
 	if err != nil {
 		return err
 	}
-	mq.ctlo = ctlo
+	mq.shutdownCB = cb
 
 	mq.stats.AddConnect()
 	mq.bridge.Logger().Tracef("opened and reading %s", mq.config.Queue)
@@ -66,9 +66,9 @@ func (mq *Queue2STANConnector) Shutdown() error {
 
 	mq.bridge.Logger().Noticef("shutting down connection %s", mq.String())
 
-	if mq.ctlo != nil {
-		if err := mq.qMgr.Ctl(ibmmq.MQOP_STOP, mq.ctlo); err != nil {
-			mq.bridge.Logger().Noticef("unable to stop callbacks for %s", mq.String())
+	if mq.shutdownCB != nil {
+		if err := mq.shutdownCB(); err != nil {
+			mq.bridge.Logger().Noticef("unable to stop listener for %s", mq.String())
 		}
 	}
 
