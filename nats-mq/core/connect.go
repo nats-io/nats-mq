@@ -47,10 +47,11 @@ func ConnectToQueueManager(mqconfig conf.MQConfig) (*ibmmq.MQQueueManager, error
 
 			// double check the connection went through
 			cmho := ibmmq.NewMQCMHO()
-			_, err2 := qMgr.CrtMH(cmho)
+			mh, err2 := qMgr.CrtMH(cmho)
 			if err2 != nil {
 				return nil, err
 			}
+			mh.DltMH(ibmmq.NewMQDMHO()) // ignore the error
 
 			return &qMgr, nil
 		}

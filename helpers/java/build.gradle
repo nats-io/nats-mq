@@ -13,6 +13,7 @@ repositories {
 dependencies {
     compile 'org.msgpack:jackson-dataformat-msgpack:0.7.1'
     compile 'com.fasterxml.jackson.core:jackson-annotations'
+    compile 'io.nats:jnats:2.4+'
     testImplementation 'junit:junit:4.12'
 }
 

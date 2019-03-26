@@ -183,21 +183,30 @@ type NATSCallback func(natsMsg []byte, replyTo string) error
 type ShutdownCallback func() error
 
 func (mq *BridgeConnector) setUpListener(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (ShutdownCallback, error) {
-	return mq.setUpCallback(target, cb, conn)
-	//return mq.setUpPolling(target, cb, conn)
+	// Problem with message handle for callbacks? return mq.setUpCallback(target, cb, conn)
+	return mq.setUpPolling(target, cb, conn)
 }
 
 func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (ShutdownCallback, error) {
-	getmqmd := ibmmq.NewMQMD()
+	mqmd := ibmmq.NewMQMD()
 	gmo := ibmmq.NewMQGMO()
+	cmho := ibmmq.NewMQCMHO()
+	propsMsgHandle, err := mq.qMgr.CrtMH(cmho)
+
+	if err != nil {
+		return nil, err
+	}
+
+	gmo.MsgHandle = propsMsgHandle
 	gmo.Options = ibmmq.MQGMO_SYNCPOINT
 	gmo.Options |= ibmmq.MQGMO_WAIT
 	gmo.Options |= ibmmq.MQGMO_FAIL_IF_QUIESCING
+	gmo.Options |= ibmmq.MQGMO_PROPERTIES_IN_HANDLE
 
 	cbd := ibmmq.NewMQCBD()
 	cbd.CallbackFunction = mq.createMQCallback(cb, conn)
 
-	err := target.CB(ibmmq.MQOP_REGISTER, cbd, getmqmd, gmo)
+	err = target.CB(ibmmq.MQOP_REGISTER, cbd, mqmd, gmo)
 
 	if err != nil {
 		return nil, err
@@ -211,14 +220,20 @@ func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback
 	}
 
 	return func() error {
-		return mq.qMgr.Ctl(ibmmq.MQOP_STOP, ctlo)
+		gmo.MsgHandle.DltMH(ibmmq.NewMQDMHO()) // ignore the error
+
+		err := mq.qMgr.Ctl(ibmmq.MQOP_STOP, ctlo)
+		if err != nil {
+			return err
+		}
+		return mq.qMgr.Ctl(ibmmq.MQOP_DEREGISTER, ctlo)
 	}, nil
 }
 
 func (mq *BridgeConnector) setUpPolling(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (ShutdownCallback, error) {
 	bufferSize := mq.config.IncomingBufferSize
 	if bufferSize == 0 {
-		bufferSize = 1024
+		bufferSize = 1024 * 8
 	}
 	buffer := make([]byte, bufferSize)
 
@@ -230,6 +245,13 @@ func (mq *BridgeConnector) setUpPolling(target *ibmmq.MQObject, cb NATSCallback,
 	done := make(chan bool)
 	callback := mq.createMQCallback(cb, conn)
 
+	cmho := ibmmq.NewMQCMHO()
+	propsMsgHandle, err := mq.qMgr.CrtMH(cmho)
+
+	if err != nil {
+		return nil, err
+	}
+
 	go func() {
 		for running {
 			mqmd := ibmmq.NewMQMD()
@@ -237,7 +259,10 @@ func (mq *BridgeConnector) setUpPolling(target *ibmmq.MQObject, cb NATSCallback,
 			gmo.Options = ibmmq.MQGMO_SYNCPOINT
 			gmo.Options |= ibmmq.MQGMO_WAIT
 			gmo.Options |= ibmmq.MQGMO_FAIL_IF_QUIESCING
+			gmo.Options |= ibmmq.MQGMO_PROPERTIES_IN_HANDLE
+			gmo.MsgHandle = propsMsgHandle
 			gmo.WaitInterval = waitTimeout
+
 			len, err := target.Get(mqmd, gmo, buffer)
 
 			if err != nil {
@@ -246,7 +271,7 @@ func (mq *BridgeConnector) setUpPolling(target *ibmmq.MQObject, cb NATSCallback,
 					callback(target, mqmd, gmo, buffer[0:len], nil, mqret)
 				}
 			} else {
-				callback(target, mqmd, gmo, buffer, nil, nil)
+				callback(target, mqmd, gmo, buffer[0:len], nil, nil)
 			}
 
 			select {
@@ -255,6 +280,8 @@ func (mq *BridgeConnector) setUpPolling(target *ibmmq.MQObject, cb NATSCallback,
 			default:
 			}
 		}
+
+		propsMsgHandle.DltMH(ibmmq.NewMQDMHO()) // ignore the error
 	}()
 
 	return func() error {
@@ -282,7 +309,7 @@ func (mq *BridgeConnector) createMQCallback(cb NATSCallback, conn Connector) fun
 
 		bufferLen := len(buffer)
 
-		mq.bridge.Logger().Tracef("%s got message of length %d", mq.String(), bufferLen)
+		mq.bridge.Logger().Tracef("%s got raw mq message with body of length %d", mq.String(), bufferLen)
 
 		qmgrFlag := mq.qMgr
 
@@ -364,9 +391,10 @@ func (mq *BridgeConnector) subscribeToNATS(subject string, dest *ibmmq.MQObject)
 		if mq.config.ExcludeHeaders {
 			qmgrFlag = nil
 		}
-
 		mq.stats.AddMessageIn(int64(len(m.Data)))
 		mqmd, handle, buffer, err := mq.bridge.NATSToMQMessage(m.Data, m.Reply, qmgrFlag)
+
+		mq.bridge.Logger().Tracef("%s got decoded nats message with body length %d", mq.String(), len(buffer))
 
 		if err != nil {
 			mq.bridge.Logger().Noticef("message conversion failure, %s, %s", mq.String(), err.Error())
@@ -431,6 +459,7 @@ func (mq *BridgeConnector) subscribeToChannel(dest *ibmmq.MQObject) (stan.Subscr
 			mq.bridge.Logger().Noticef("message conversion failure, %s, %s", mq.String(), err.Error())
 			return
 		}
+		mq.bridge.Logger().Tracef("%s got decoded stan message with body length %d", mq.String(), len(buffer))
 
 		pmo := ibmmq.NewMQPMO()
 		pmo.Options = ibmmq.MQPMO_NO_SYNCPOINT

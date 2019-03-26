@@ -71,6 +71,7 @@ func (mq *Queue2NATSConnector) Shutdown() error {
 		if err := mq.shutdownCB(); err != nil {
 			mq.bridge.Logger().Noticef("error stopping listener for %s, %s", mq.String(), err.Error())
 		}
+		mq.shutdownCB = nil
 	}
 
 	var err error

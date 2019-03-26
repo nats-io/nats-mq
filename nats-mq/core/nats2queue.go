@@ -57,7 +57,7 @@ func (mq *NATS2QueueConnector) Start() error {
 	mq.sub = sub
 
 	mq.stats.AddConnect()
-	mq.bridge.Logger().Tracef("opened and reading %s", mq.queue)
+	mq.bridge.Logger().Tracef("opened and reading %s", mq.config.Queue)
 	mq.bridge.Logger().Noticef("started connection %s", mq.String())
 
 	return nil
