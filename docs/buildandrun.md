@@ -38,6 +38,7 @@ Once built, the executable will be named nats-mq and can be run with a similar s
 The nats-mq bridge is written in GO and uses the [IBM library for MQ-Series](`github.com/ibm-messaging/mq-golang`). This library uses `cgo` to build on the MQI libraries. As a result the MQ series libraries are required on any machine used to build the bridge.
 
 > There is a fix in the mq-golang library version `7486f4a0b63560e3d0fdcd084b7c0d52b783dc33` that is required for integer properties.
+> There is a fix in the mq-golang library version `c8adfe8` that is required for mq callbacks to work (currently in branch cbmh).
 
 The dependency on the MQ package requires v3.3.4 to fix an rpath issue on Darwin. The commit listed above is past this version.
 
@@ -177,7 +178,7 @@ We created the kdb file using `runmqakm -cert -export -db client_key.p12 -pw tru
 
 ### Developer notes
 
-* The MQ series code uses callbacks, instead of get/put, to receive messages from Queues and Topics.
+* The MQ series code can use callbacks or polling with get, to receive messages from Queues and Topics. There have been issues in the library for each so by having both the configuration can be used to pick one that works for the current setup.
 * Using docker for tests will eat up docker space, you may need to run `docker system prune` once in a while to clean this up. The symptom of a full cache will be that the tests take forever to run because they fail to run the MQ series server image and spend 30s trying to connect before failing.
 * `nats-mq/core/test_util.go` has the implementation used to run the nats server, the streaming server and the MQ image for each test.
 * A number of performance "tests" are provided in the `performance` folder.

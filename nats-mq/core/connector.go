@@ -183,8 +183,10 @@ type NATSCallback func(natsMsg []byte, replyTo string) error
 type ShutdownCallback func() error
 
 func (mq *BridgeConnector) setUpListener(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (ShutdownCallback, error) {
-	// Problem with message handle for callbacks? return mq.setUpCallback(target, cb, conn)
-	return mq.setUpPolling(target, cb, conn)
+	if mq.config.UsePolling {
+		return mq.setUpPolling(target, cb, conn)
+	}
+	return mq.setUpCallback(target, cb, conn)
 }
 
 func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback, conn Connector) (ShutdownCallback, error) {
@@ -202,6 +204,8 @@ func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback
 	gmo.Options |= ibmmq.MQGMO_WAIT
 	gmo.Options |= ibmmq.MQGMO_FAIL_IF_QUIESCING
 	gmo.Options |= ibmmq.MQGMO_PROPERTIES_IN_HANDLE
+
+	mq.bridge.Logger().Tracef("setting up callback for %s", mq.String())
 
 	cbd := ibmmq.NewMQCBD()
 	cbd.CallbackFunction = mq.createMQCallback(cb, conn)
@@ -252,6 +256,8 @@ func (mq *BridgeConnector) setUpPolling(target *ibmmq.MQObject, cb NATSCallback,
 		return nil, err
 	}
 
+	mq.bridge.Logger().Tracef("starting polling for %s", mq.String())
+
 	go func() {
 		for running {
 			mqmd := ibmmq.NewMQMD()
@@ -268,10 +274,10 @@ func (mq *BridgeConnector) setUpPolling(target *ibmmq.MQObject, cb NATSCallback,
 			if err != nil {
 				mqret := err.(*ibmmq.MQReturn)
 				if mqret.MQRC != ibmmq.MQRC_NO_MSG_AVAILABLE {
-					callback(target, mqmd, gmo, buffer[0:len], nil, mqret)
+					callback(mq.qMgr, target, mqmd, gmo, buffer[0:len], nil, mqret)
 				}
 			} else {
-				callback(target, mqmd, gmo, buffer[0:len], nil, nil)
+				callback(mq.qMgr, target, mqmd, gmo, buffer[0:len], nil, nil)
 			}
 
 			select {
@@ -290,8 +296,8 @@ func (mq *BridgeConnector) setUpPolling(target *ibmmq.MQObject, cb NATSCallback,
 	}, nil
 }
 
-func (mq *BridgeConnector) createMQCallback(cb NATSCallback, conn Connector) func(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
-	return func(hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
+func (mq *BridgeConnector) createMQCallback(cb NATSCallback, conn Connector) func(qMgr *ibmmq.MQQueueManager, hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
+	return func(qMgr *ibmmq.MQQueueManager, hObj *ibmmq.MQObject, md *ibmmq.MQMD, gmo *ibmmq.MQGMO, buffer []byte, cbc *ibmmq.MQCBC, mqErr *ibmmq.MQReturn) {
 		mq.Lock()
 		defer mq.Unlock()
 		start := time.Now()
@@ -304,6 +310,11 @@ func (mq *BridgeConnector) createMQCallback(cb NATSCallback, conn Connector) fun
 
 			err := fmt.Errorf("mq error in callback %s", mqErr.Error())
 			go mq.bridge.ConnectorError(conn, err)
+			return
+		}
+
+		// ignore event calls
+		if cbc != nil && cbc.CallType == ibmmq.MQCBCT_EVENT_CALL {
 			return
 		}
 

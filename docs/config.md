@@ -235,3 +235,9 @@ For streaming connections, there is a single required setting and several option
 * `durablename` - (optional) durable name for the streaming subscription (if appropriate.)
 * `startatsequence` - (optional) start position, use -1 for start with last received, 0 for deliver all available (the default.)
 * `startattime` - (optional) the start position as a time, in Unix seconds since the epoch, mutually exclusive with `startatsequence`.
+
+Connectors that read from MQ series queues or topics can either rely on callbacks or polling. To enable polling use the following properties:
+
+* `usepolling` - turn on polling instead of callbacks.
+* `incomingbuffersize` - the buffer size to use when polling for messages, the default is 8k.
+* `incomingmessagewait` - the wait time, in milliseconds to use while polling, longer times can effect shutdown responsiveness, the default is 500ms.
