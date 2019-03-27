@@ -32,7 +32,7 @@ func TestSimpleSendOnStanReceiveOnQueue(t *testing.T) {
 	err = tbs.SC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 
@@ -79,11 +79,11 @@ func TestSendOnStanReceiveOnQueueMQMD(t *testing.T) {
 	err = tbs.SC.Publish("test", encoded)
 	require.NoError(t, err)
 
-	mqmd, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	mqmd, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 
-	mqmd, data, err = tbs.GetMessageFromQueue(queue, 5000)
+	mqmd, _, data, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 
@@ -124,7 +124,7 @@ func TestSimpleSendOnStanReceiveOnQueueWithTLS(t *testing.T) {
 	err = tbs.SC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 }
@@ -157,9 +157,9 @@ func TestQueueStartAtPosition(t *testing.T) {
 	err = tbs.StartBridge(connect, false)
 	require.NoError(t, err)
 
-	_, _, err = tbs.GetMessageFromQueue(queue, 5000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
-	_, _, err = tbs.GetMessageFromQueue(queue, 2000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 2000)
 	require.Error(t, err)
 
 	stats := tbs.Bridge.SafeStats()
@@ -197,19 +197,19 @@ func TestQueueDeliverLatest(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should get the last one
-	_, _, err = tbs.GetMessageFromQueue(queue, 5000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 
 	err = tbs.SC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
 	// Should receive 1 message we just sent
-	_, _, err = tbs.GetMessageFromQueue(queue, 5000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
-	_, _, err = tbs.GetMessageFromQueue(queue, 2000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 2000)
 	require.Error(t, err)
 
-	_, _, err = tbs.GetMessageFromQueue(queue, 2000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 2000)
 	require.Error(t, err)
 
 	stats := tbs.Bridge.SafeStats()
@@ -252,9 +252,9 @@ func TestQueueStartAtTime(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should only get the one we just sent
-	_, _, err = tbs.GetMessageFromQueue(queue, 5000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
-	_, _, err = tbs.GetMessageFromQueue(queue, 2000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 2000)
 	require.Error(t, err)
 
 	stats := tbs.Bridge.SafeStats()
@@ -287,7 +287,7 @@ func TestQueueDurableSubscriber(t *testing.T) {
 	err = tbs.SC.Publish("test", []byte("one"))
 	require.NoError(t, err)
 
-	_, _, err = tbs.GetMessageFromQueue(queue, 5000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 
 	tbs.StopBridge()
@@ -302,11 +302,11 @@ func TestQueueDurableSubscriber(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should only get 2 more, we sent 3 but already got 1
-	_, _, err = tbs.GetMessageFromQueue(queue, 5000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
-	_, _, err = tbs.GetMessageFromQueue(queue, 5000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
-	_, _, err = tbs.GetMessageFromQueue(queue, 2000)
+	_, _, _, err = tbs.GetMessageFromQueue(queue, 2000)
 	require.Error(t, err)
 
 	// Should have 2 messages since the relaunch

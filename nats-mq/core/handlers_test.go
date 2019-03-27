@@ -80,7 +80,7 @@ func TestNATSReconnect(t *testing.T) {
 	err = tbs.NC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 
@@ -98,7 +98,7 @@ func TestNATSReconnect(t *testing.T) {
 	err = tbs.NC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err = tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 }
@@ -124,7 +124,7 @@ func TestStanReconnect(t *testing.T) {
 	err = tbs.SC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 
@@ -142,7 +142,7 @@ func TestStanReconnect(t *testing.T) {
 	err = tbs.SC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err = tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err = tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 }

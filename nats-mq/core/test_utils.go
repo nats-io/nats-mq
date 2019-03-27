@@ -328,7 +328,7 @@ func (tbs *TestEnv) GetQueueManagerName() string {
 }
 
 // GetMessageFromQueue uses the test environments extra connection to talk to the queue, bypassing the bridge's connection
-func (tbs *TestEnv) GetMessageFromQueue(qName string, waitMillis int32) (*ibmmq.MQMD, []byte, error) {
+func (tbs *TestEnv) GetMessageFromQueue(qName string, waitMillis int32) (*ibmmq.MQMD, *ibmmq.MQGMO, []byte, error) {
 	mqod := ibmmq.NewMQOD()
 	openOptions := ibmmq.MQOO_INPUT_EXCLUSIVE
 	mqod.ObjectType = ibmmq.MQOT_Q
@@ -336,25 +336,33 @@ func (tbs *TestEnv) GetMessageFromQueue(qName string, waitMillis int32) (*ibmmq.
 
 	qObject, err := tbs.QMgr.Open(mqod, openOptions)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer qObject.Close(0)
 
 	getmqmd := ibmmq.NewMQMD()
 	gmo := ibmmq.NewMQGMO()
+	cmho := ibmmq.NewMQCMHO()
+	propsMsgHandle, err := tbs.QMgr.CrtMH(cmho)
 
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	gmo.MsgHandle = propsMsgHandle
 	gmo.Options = ibmmq.MQGMO_NO_SYNCPOINT
 	gmo.Options |= ibmmq.MQGMO_WAIT
+	gmo.Options |= ibmmq.MQGMO_PROPERTIES_IN_HANDLE
 	gmo.WaitInterval = waitMillis
 
 	buffer := make([]byte, 4096)
 	datalen, err := qObject.Get(getmqmd, gmo, buffer)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return getmqmd, buffer[:datalen], nil
+	return getmqmd, gmo, buffer[:datalen], nil
 }
 
 // PutMessageOnQueue uses the test environments extra connection to talk to the queue, bypassing the bridge's connection

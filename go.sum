@@ -25,6 +25,8 @@ github.com/ibm-messaging/mq-golang v0.0.0-20190312163150-7486f4a0b635 h1:dEQMrZ7
 github.com/ibm-messaging/mq-golang v0.0.0-20190312163150-7486f4a0b635/go.mod h1:qjsZDb7m1oKnbPeDma2JVJTKgyCA91I4bcJ1qHY+gcA=
 github.com/ibm-messaging/mq-golang v0.0.0-20190326084055-c8adfe8eed71 h1:Ok66Bu3cdjsQDcFqJNl+Tnef4UZb9j0u0JZ/qWSYCyA=
 github.com/ibm-messaging/mq-golang v0.0.0-20190326084055-c8adfe8eed71/go.mod h1:qjsZDb7m1oKnbPeDma2JVJTKgyCA91I4bcJ1qHY+gcA=
+github.com/ibm-messaging/mq-golang v0.0.0-20190327085124-99a6892c4514 h1:1VFFjaAcswXVkUZeqPRkxQEcG4t1XGN8bGOM2+gaElY=
+github.com/ibm-messaging/mq-golang v0.0.0-20190327085124-99a6892c4514/go.mod h1:qjsZDb7m1oKnbPeDma2JVJTKgyCA91I4bcJ1qHY+gcA=
 github.com/ibm-messaging/mq-golang v3.0.0+incompatible h1:Yc3c8emAyveT54uNDRMkgvS+EBAHeLNWHkc3hk5x+IY=
 github.com/ibm-messaging/mq-golang v3.0.0+incompatible h1:sA691LAlnWfnVEYOYZ16d4N58PROQli0bji0a5An+9g=
 github.com/ibm-messaging/mq-golang v3.0.0+incompatible/go.mod h1:3mrTfZjGOPvDImD64g9DXJHAXonfGJZWUAYPjVvdnLo=

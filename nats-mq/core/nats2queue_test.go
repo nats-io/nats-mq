@@ -32,7 +32,7 @@ func TestSimpleSendOnNatsReceiveOnQueue(t *testing.T) {
 	err = tbs.NC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 
@@ -71,13 +71,14 @@ func TestSendOnNATSReceiveOnQueueMQMD(t *testing.T) {
 	bridgeMessage := message.NewBridgeMessage([]byte(msg))
 	bridgeMessage.Header.CorrelID = corr
 	bridgeMessage.Header.MsgID = id
+	bridgeMessage.SetProperty("count", 11)
 	encoded, err := bridgeMessage.Encode()
 	require.NoError(t, err)
 
 	err = tbs.NC.Publish("test", encoded)
 	require.NoError(t, err)
 
-	mqmd, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	mqmd, gmo, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 
@@ -85,6 +86,16 @@ func TestSendOnNATSReceiveOnQueueMQMD(t *testing.T) {
 	require.True(t, start.Format("15040500") < mqmd.PutTime)
 	require.ElementsMatch(t, id, mqmd.MsgId)
 	require.ElementsMatch(t, corr, mqmd.CorrelId)
+
+	require.NotNil(t, gmo)
+	require.NotNil(t, gmo.MsgHandle)
+
+	impo := ibmmq.NewMQIMPO()
+	pd := ibmmq.NewMQPD()
+	impo.Options = ibmmq.MQIMPO_CONVERT_VALUE
+	name, value, err := gmo.MsgHandle.InqMP(impo, pd, "count")
+	require.Equal(t, "count", name)
+	require.Equal(t, int64(11), value.(int64))
 
 	stats := tbs.Bridge.SafeStats()
 	connStats := stats.Connections[0]
@@ -118,7 +129,7 @@ func TestSimpleSendOnNatsReceiveOnQueueWithTLS(t *testing.T) {
 	err = tbs.NC.Publish("test", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 }
@@ -143,7 +154,7 @@ func TestWildcardSendRecieveOnQueue(t *testing.T) {
 	err = tbs.NC.Publish("test.a", []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 }

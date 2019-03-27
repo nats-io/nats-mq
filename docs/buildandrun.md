@@ -38,7 +38,7 @@ Once built, the executable will be named nats-mq and can be run with a similar s
 The nats-mq bridge is written in GO and uses the [IBM library for MQ-Series](`github.com/ibm-messaging/mq-golang`). This library uses `cgo` to build on the MQI libraries. As a result the MQ series libraries are required on any machine used to build the bridge.
 
 > There is a fix in the mq-golang library version `7486f4a0b63560e3d0fdcd084b7c0d52b783dc33` that is required for integer properties.
-> There is a fix in the mq-golang library version `c8adfe8` that is required for mq callbacks to work (currently in branch cbmh).
+> There is a fix in the mq-golang library version `c8adfe8` that is required for mq callbacks to work (currently in release 4.0.2 99a6892).
 
 The dependency on the MQ package requires v3.3.4 to fix an rpath issue on Darwin. The commit listed above is past this version.
 

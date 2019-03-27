@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.0.0 // indirect
 	github.com/hashicorp/go-msgpack v0.5.3 // indirect
 	github.com/hashicorp/raft v1.0.0 // indirect
-	github.com/ibm-messaging/mq-golang v0.0.0-20190326084055-c8adfe8eed71
+	github.com/ibm-messaging/mq-golang v0.0.0-20190327085124-99a6892c4514
 	github.com/lib/pq v1.0.0 // indirect
 	github.com/nats-io/gnatsd v1.4.1
 	github.com/nats-io/go-nats v1.7.2

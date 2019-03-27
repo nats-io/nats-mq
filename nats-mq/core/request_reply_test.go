@@ -49,7 +49,7 @@ func TestSendReceiveOnNATSThruQueue(t *testing.T) {
 	err = tbs.NC.PublishRequest(subject, replyToSubject, []byte(msg))
 	require.NoError(t, err)
 
-	mqmd, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	mqmd, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 	require.Equal(t, mqmd.ReplyToQ, replyQueue)
@@ -106,7 +106,7 @@ func TestSendReceiveOnMQThruNATS(t *testing.T) {
 	err = tbs.PutMessageOnQueue(queue, mqmd, []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(replyQueue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(replyQueue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, response, string(data))
 }
@@ -152,7 +152,7 @@ func TestSendReceiveOnMQThruNATSHeaderInNotOut(t *testing.T) {
 	err = tbs.PutMessageOnQueue(queue, mqmd, []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(replyQueue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(replyQueue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, response, string(data))
 }
@@ -201,7 +201,7 @@ func TestSendReceiveOnStanThruQueue(t *testing.T) {
 	err = tbs.SC.Publish(channel, bytes)
 	require.NoError(t, err)
 
-	mqmd, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	mqmd, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 	require.Equal(t, mqmd.ReplyToQ, replyQueue)
@@ -266,7 +266,7 @@ func TestSendReceiveOnMQThruStan(t *testing.T) {
 	err = tbs.PutMessageOnQueue(queue, mqmd, []byte(msg))
 	require.NoError(t, err)
 
-	_, data, err := tbs.GetMessageFromQueue(replyQueue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(replyQueue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, response, string(data))
 }
