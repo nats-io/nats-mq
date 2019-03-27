@@ -16,9 +16,11 @@ import (
 )
 
 var iterations int
+var useTLS bool
 
 func main() {
 	flag.IntVar(&iterations, "i", 1000, "iterations, docker image defaults to 5000 in queue")
+	flag.BoolVar(&useTLS, "tls", false, "use tls")
 	flag.Parse()
 	msg := strings.Repeat("stannats", 128) // 1024 bytes
 
@@ -35,9 +37,10 @@ func main() {
 	}
 
 	// Start the infrastructure
-	tbs, err := core.StartTestEnvironmentInfrastructure(false)
+	tbs, err := core.StartTestEnvironmentInfrastructure(useTLS)
 	if err != nil {
 		log.Fatalf("error starting test environment, %s", err.Error())
+		return
 	}
 
 	start := time.Now()
@@ -87,7 +90,7 @@ func main() {
 	}
 
 	// Queues are ready, now start the bridge
-	tbs.StartBridge(connect, false)
+	tbs.StartBridge(connect, useTLS)
 
 	<-done
 	end := time.Now()
