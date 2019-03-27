@@ -36,6 +36,7 @@ func TestSimpleSendOnQueueReceiveOnNatsCallback(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
@@ -87,6 +88,7 @@ func TestSendOnQueueReceiveOnNatsMQMD(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- msg.Data
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()
@@ -149,6 +151,7 @@ func TestSimpleSendOnQueueReceiveOnNatsWithTLS(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
@@ -188,6 +191,7 @@ func TestMaxInFlightKicker(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
@@ -227,6 +231,7 @@ func TestMaxInFlight(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
@@ -273,6 +278,7 @@ func TestSimpleSendOnQueueReceiveOnNatsPolling(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))

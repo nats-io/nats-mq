@@ -35,6 +35,7 @@ func TestSimpleSendOnTopicReceiveOnNats(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
@@ -86,6 +87,7 @@ func TestSendOnTopicReceiveOnNatsMQMD(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- msg.Data
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()
@@ -150,6 +152,7 @@ func TestSimpleSendOnTopicReceiveOnNatsWithTLS(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(subject, func(msg *nats.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))

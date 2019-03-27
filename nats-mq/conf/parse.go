@@ -23,19 +23,19 @@ func parseBoolean(keyname string, v interface{}) (bool, error) {
 func parseInt(keyname string, v interface{}) (int64, error) {
 	i := 0
 	var err error
-	switch v.(type) {
+	switch v := v.(type) {
 	case int:
-		i = int(v.(int))
+		i = int(v)
 	case int8:
-		i = int(v.(int8))
+		i = int(v)
 	case int16:
-		i = int(v.(int16))
+		i = int(v)
 	case int32:
-		i = int(v.(int32))
+		i = int(v)
 	case int64:
-		i = int(v.(int64))
+		i = int(v)
 	case string:
-		i, err = strconv.Atoi(v.(string))
+		i, err = strconv.Atoi(string(v))
 		if err != nil {
 			err = fmt.Errorf("unable to parse integer %v for key %s", v, keyname)
 		}
@@ -48,13 +48,13 @@ func parseInt(keyname string, v interface{}) (int64, error) {
 func parseFloat(keyname string, v interface{}) (float64, error) {
 	var err error
 	i := 0.0
-	switch v.(type) {
+	switch v := v.(type) {
 	case float32:
-		i = float64(v.(float32))
+		i = float64(v)
 	case float64:
-		i = float64(v.(float64))
+		i = float64(v)
 	case string:
-		i, err = strconv.ParseFloat(v.(string), 64)
+		i, err = strconv.ParseFloat(string(v), 64)
 		if err != nil {
 			err = fmt.Errorf("unable to parse float %v for key %s", v, keyname)
 		}
@@ -74,11 +74,11 @@ func parseString(keyName string, v interface{}) (string, error) {
 
 func parseHostPort(keyName string, v interface{}) (HostPort, error) {
 	r := HostPort{}
-	switch v.(type) {
+	switch v := v.(type) {
 	case int64:
-		r.Port = int(v.(int64))
+		r.Port = int(v)
 	case string:
-		h, p, err := net.SplitHostPort(v.(string))
+		h, p, err := net.SplitHostPort(string(v))
 		if err != nil {
 			return r, fmt.Errorf("unable to parse hostport %s for key %s", v, keyName)
 		}

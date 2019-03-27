@@ -34,6 +34,7 @@ func TestSimpleSendOnTopicReceiveOnStan(t *testing.T) {
 	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))
@@ -83,6 +84,7 @@ func TestSendOnTopicReceiveOnStanMQMD(t *testing.T) {
 	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
 		done <- msg.Data
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()
@@ -141,6 +143,7 @@ func TestSimpleSendOnTopicReceiveOnStanWithTLS(t *testing.T) {
 	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnTopic(topic, ibmmq.NewMQMD(), []byte(msg))

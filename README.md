@@ -20,7 +20,7 @@ This project implements a simple, but generic, bridge between NATS or NATS strea
 
 The bridge runs as a single process with a configured set of connectors mapping an MQ-Series queue or topic to a NATS subject or a NATS streaming channel. Connectors can also map the opposite direction from NATS to MQ-Series. Each connector is a one-way bridge.
 
-Connectors share a NATS connection and an optional connection to the NATS streaming server. **Connecters each create a connection to the MQ server, subject to TCP connection sharing in the underlying library**
+Connectors share a NATS connection and an optional connection to the NATS streaming server. **Connectors each create a connection to the MQ server, subject to TCP connection sharing in the underlying library**
 
 Messages can be forwarded with or without headers. This mapping is as bi-directional as possible. NATS clients can send messages with MQ headers set, and NATS clients can read the headers contained in MQ messages. However, there are a few limitations where NATS to MQ messages will have headers stripped because they can't be passed in to the queue or topic. When headers are included, the contents of the NATS message is prescribed by a [msgpack-based format.](docs/messages.md) Connectors set to exclude headers will just use the body of the MQ message as the entire NATS message.
 

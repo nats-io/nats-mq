@@ -28,6 +28,7 @@ func TestMQReconnect(t *testing.T) {
 	defer tbs.Close()
 
 	sub, err := tbs.NC.SubscribeSync(subject)
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
@@ -43,7 +44,7 @@ func TestMQReconnect(t *testing.T) {
 
 	// Wait up to 15s for the bridge to get reconnected
 	start := time.Now()
-	for time.Now().Sub(start) < time.Second*15 && tbs.Bridge.checkReconnecting() {
+	for time.Since(start) < time.Second*15 && tbs.Bridge.checkReconnecting() {
 		time.Sleep(250 * time.Millisecond)
 	}
 
@@ -89,7 +90,7 @@ func TestNATSReconnect(t *testing.T) {
 
 	// Wait up to 15s for the bridge to get reconnected
 	start := time.Now()
-	for time.Now().Sub(start) < time.Second*15 && tbs.Bridge.checkReconnecting() {
+	for time.Since(start) < time.Second*15 && tbs.Bridge.checkReconnecting() {
 		time.Sleep(250 * time.Millisecond)
 	}
 
@@ -133,7 +134,7 @@ func TestStanReconnect(t *testing.T) {
 
 	// Wait up to 15s for the bridge to get reconnected
 	start := time.Now()
-	for time.Now().Sub(start) < time.Second*15 && tbs.Bridge.checkReconnecting() {
+	for time.Since(start) < time.Second*15 && tbs.Bridge.checkReconnecting() {
 		time.Sleep(250 * time.Millisecond)
 	}
 
@@ -198,7 +199,7 @@ func TestStanPubFailure(t *testing.T) {
 
 	// Wait up to 15s for the bridge to get reconnected
 	start := time.Now()
-	for time.Now().Sub(start) < time.Second*15 && tbs.Bridge.checkReconnecting() {
+	for time.Since(start) < time.Second*15 && tbs.Bridge.checkReconnecting() {
 		time.Sleep(250 * time.Millisecond)
 	}
 

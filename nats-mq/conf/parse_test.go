@@ -647,7 +647,9 @@ func TestPrivateField(t *testing.T) {
 	name: "stephen"
 	`
 
-	config := HasPrivate{}
+	config := HasPrivate{
+		name: "alberto",
+	}
 
 	err := LoadConfigFromString(configString, &config, false)
 	require.NoError(t, err)

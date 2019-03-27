@@ -83,7 +83,6 @@ func (mq *Topic2StanConnector) Shutdown() error {
 	}
 
 	var err error
-	var err2 error
 
 	sub := mq.sub
 	topic := mq.topic
@@ -99,16 +98,11 @@ func (mq *Topic2StanConnector) Shutdown() error {
 	}
 
 	if topic != nil {
-		err2 = topic.Close(0)
+		err = topic.Close(0)
 
-		if err2 != nil {
+		if err != nil {
 			mq.bridge.Logger().Noticef("error closing topic for %s", mq.String())
 		}
-	}
-
-	// Return an error if either errored, but at this point not much we can do
-	if err == nil {
-		err = err2
 	}
 
 	if mq.qMgr != nil {
@@ -117,7 +111,7 @@ func (mq *Topic2StanConnector) Shutdown() error {
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
-	return nil //err // ignore the disconnect error
+	return nil // ignore the disconnect error
 }
 
 // CheckConnections ensures the nats/stan connection and report an error if it is down

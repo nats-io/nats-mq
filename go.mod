@@ -1,7 +1,9 @@
 module github.com/nats-io/nats-mq
 
 require (
+	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da // indirect
+	github.com/client9/misspell v0.3.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gogo/protobuf v1.2.1 // indirect
@@ -22,7 +24,8 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/ugorji/go/codec v0.0.0-20190204201341-e444a5086c43
 	go.etcd.io/bbolt v1.3.2 // indirect
-	golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc // indirect
 	golang.org/x/sys v0.0.0-20190302025703-b6889370fb10 // indirect
+	golang.org/x/tools v0.0.0-20190327180849-dbeab5af4b8d // indirect
 	google.golang.org/appengine v1.3.0 // indirect
+	honnef.co/go/tools v0.0.0-20190319011948-d116c56a00f3 // indirect
 )

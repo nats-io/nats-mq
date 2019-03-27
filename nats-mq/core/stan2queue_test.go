@@ -79,11 +79,11 @@ func TestSendOnStanReceiveOnQueueMQMD(t *testing.T) {
 	err = tbs.SC.Publish("test", encoded)
 	require.NoError(t, err)
 
-	mqmd, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
+	_, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 
-	mqmd, _, data, err = tbs.GetMessageFromQueue(queue, 5000)
+	mqmd, _, data, err := tbs.GetMessageFromQueue(queue, 5000)
 	require.NoError(t, err)
 	require.Equal(t, msg, string(data))
 

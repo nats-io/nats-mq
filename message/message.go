@@ -240,17 +240,17 @@ func (msg *BridgeMessage) GetStringProperty(name string) (string, bool) {
 
 func (msg *BridgeMessage) parseInt(v interface{}) (int64, bool) {
 	i := 0
-	switch v.(type) {
+	switch v := v.(type) {
 	case int:
-		i = int(v.(int))
+		i = int(v)
 	case int8:
-		i = int(v.(int8))
+		i = int(v)
 	case int16:
-		i = int(v.(int16))
+		i = int(v)
 	case int32:
-		i = int(v.(int32))
+		i = int(v)
 	case int64:
-		i = int(v.(int64))
+		i = int(v)
 	default:
 		return 0, false
 	}
@@ -319,11 +319,11 @@ func (msg *BridgeMessage) GetInt64Property(name string) (int64, bool) {
 
 func (msg *BridgeMessage) parseFloat(v interface{}) (float64, bool) {
 	i := 0.0
-	switch v.(type) {
+	switch v := v.(type) {
 	case float32:
-		i = float64(v.(float32))
+		i = float64(v)
 	case float64:
-		i = float64(v.(float64))
+		i = float64(v)
 	default:
 		return 0, false
 	}

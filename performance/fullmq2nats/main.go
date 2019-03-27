@@ -68,6 +68,9 @@ func main() {
 	start := time.Now()
 	for i := 0; i < iterations; i++ {
 		err = qObject.Put(putmqmd, pmo, buffer)
+		if err != nil {
+			log.Fatalf("error putting messages on queue")
+		}
 	}
 	<-done
 	end := time.Now()

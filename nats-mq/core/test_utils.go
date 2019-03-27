@@ -448,6 +448,9 @@ func StartMQTestServer(waitForStart time.Duration, useTLS bool, mqPort int) (*MQ
 	}
 
 	dir, err := ioutil.TempDir("/tmp", "mqdata")
+	if err != nil {
+		return nil, nil, err
+	}
 	extraQueues := ""
 
 	// Add the queues
@@ -541,7 +544,7 @@ func StartMQTestServer(waitForStart time.Duration, useTLS bool, mqPort int) (*MQ
 
 	var connection *ibmmq.MQQueueManager
 
-	for waitForStart > 0 && time.Now().Sub(start) < waitForStart {
+	for waitForStart > 0 && time.Since(start) < waitForStart {
 		connection, err = ConnectToQueueManager(config)
 		if err == nil {
 			break

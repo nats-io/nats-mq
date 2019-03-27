@@ -371,7 +371,7 @@ func (mq *BridgeConnector) createMQCallback(cb NATSCallback, conn Connector) fun
 				}(mq)
 			}
 			mq.stats.AddMessageOut(int64(len(natsMsg)))
-			mq.stats.AddRequestTime(time.Now().Sub(start))
+			mq.stats.AddRequestTime(time.Since(start))
 		}
 	}
 }
@@ -422,7 +422,7 @@ func (mq *BridgeConnector) subscribeToNATS(subject string, dest *ibmmq.MQObject)
 			mq.bridge.Logger().Noticef("MQ publish failure, %s, %s", mq.String(), err.Error())
 		} else {
 			mq.stats.AddMessageOut(int64(len(buffer)))
-			mq.stats.AddRequestTime(time.Now().Sub(start))
+			mq.stats.AddRequestTime(time.Since(start))
 		}
 	})
 }
@@ -483,7 +483,7 @@ func (mq *BridgeConnector) subscribeToChannel(dest *ibmmq.MQObject) (stan.Subscr
 		} else {
 			msg.Ack()
 			mq.stats.AddMessageOut(int64(len(buffer)))
-			mq.stats.AddRequestTime(time.Now().Sub(start))
+			mq.stats.AddRequestTime(time.Since(start))
 		}
 	}, options...)
 

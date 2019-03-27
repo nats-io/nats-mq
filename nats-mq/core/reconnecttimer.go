@@ -15,7 +15,7 @@ func newReconnectTimer() *reconnectTimer {
 	}
 }
 
-// After returns a channel that will return true/false based on whether the timer was cancelled
+// After returns a channel that will return true/false based on whether the timer was canceled
 func (c *reconnectTimer) After(d time.Duration) chan bool {
 	ch := make(chan bool)
 	go func() {

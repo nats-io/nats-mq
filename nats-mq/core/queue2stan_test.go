@@ -35,6 +35,7 @@ func TestSimpleSendOnQueueReceiveOnStan(t *testing.T) {
 	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))
@@ -86,6 +87,7 @@ func TestSendOnQueueReceiveOnStanMQMD(t *testing.T) {
 	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
 		done <- msg.Data
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()
@@ -148,6 +150,7 @@ func TestSimpleSendOnQueueReceiveOnStanWithTLS(t *testing.T) {
 	sub, err := tbs.SC.Subscribe(channel, func(msg *stan.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.PutMessageOnQueue(queue, ibmmq.NewMQMD(), []byte(msg))

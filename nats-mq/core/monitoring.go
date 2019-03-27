@@ -53,6 +53,7 @@ func (bridge *BridgeServer) startMonitoring() error {
 		err          error
 		httpListener net.Listener
 		port         int
+		cer          tls.Certificate
 	)
 
 	monitorProtocol := "http"
@@ -65,7 +66,7 @@ func (bridge *BridgeServer) startMonitoring() error {
 		}
 		hp = net.JoinHostPort(config.HTTPHost, strconv.Itoa(port))
 
-		cer, err := tls.LoadX509KeyPair(config.TLS.Cert, config.TLS.Key)
+		cer, err = tls.LoadX509KeyPair(config.TLS.Cert, config.TLS.Key)
 		if err != nil {
 			return err
 		}
@@ -73,7 +74,6 @@ func (bridge *BridgeServer) startMonitoring() error {
 		config := &tls.Config{Certificates: []tls.Certificate{cer}}
 		config.ClientAuth = tls.NoClientCert
 		httpListener, err = tls.Listen("tcp", hp, config)
-
 	} else {
 		port = config.HTTPPort
 		if port == -1 {
@@ -234,13 +234,13 @@ func (bridge *BridgeServer) stats() BridgeStats {
 // SafeStats grabs the lock then calls stats(), useful for tests
 func (bridge *BridgeServer) SafeStats() BridgeStats {
 	bridge.runningLock.Lock()
-	bridge.runningLock.Unlock()
+	defer bridge.runningLock.Unlock()
 	return bridge.stats()
 }
 
 // GetMonitoringRootURL returns the protocol://host:port for the monitoring server, useful for testing
 func (bridge *BridgeServer) GetMonitoringRootURL() string {
 	bridge.runningLock.Lock()
-	bridge.runningLock.Unlock()
+	defer bridge.runningLock.Unlock()
 	return bridge.monitoringURL
 }

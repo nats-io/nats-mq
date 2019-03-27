@@ -21,7 +21,7 @@ func copyByteArray(data []byte) []byte {
 
 // Copies the array if it isn't empty, otherwise returns the default
 func copyByteArrayIfNotEmpty(data []byte, def []byte, size int32) []byte {
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return def
 	}
 	newArray := bytes.Repeat([]byte{0}, int(size))

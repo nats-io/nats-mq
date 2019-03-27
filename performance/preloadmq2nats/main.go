@@ -75,6 +75,9 @@ func main() {
 	log.Printf("prepping queue with %d messages...", iterations)
 	for i := 0; i < iterations+1; i++ {
 		err = qObject.Put(putmqmd, pmo, buffer)
+		if err != nil {
+			log.Fatalf("error putting messages on queue")
+		}
 	}
 
 	// Queue is ready, now start the bridge

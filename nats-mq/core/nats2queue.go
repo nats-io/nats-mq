@@ -13,9 +13,7 @@ type NATS2QueueConnector struct {
 	BridgeConnector
 
 	queue *ibmmq.MQObject
-	ctlo  *ibmmq.MQCTLO
-
-	sub *nats.Subscription
+	sub   *nats.Subscription
 }
 
 // NewNATS2QueueConnector create a nats to MQ connector

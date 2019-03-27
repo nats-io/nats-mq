@@ -94,6 +94,7 @@ func TestSendOnNATSReceiveOnQueueMQMD(t *testing.T) {
 	pd := ibmmq.NewMQPD()
 	impo.Options = ibmmq.MQIMPO_CONVERT_VALUE
 	name, value, err := gmo.MsgHandle.InqMP(impo, pd, "count")
+	require.NoError(t, err)
 	require.Equal(t, "count", name)
 	require.Equal(t, int64(11), value.(int64))
 

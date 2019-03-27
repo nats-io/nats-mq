@@ -44,6 +44,7 @@ func TestSendReceiveOnNATSThruQueue(t *testing.T) {
 	sub, err := tbs.NC.Subscribe(replyToSubject, func(msg *nats.Msg) {
 		done <- string(msg.Data)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	err = tbs.NC.PublishRequest(subject, replyToSubject, []byte(msg))
@@ -98,6 +99,7 @@ func TestSendReceiveOnMQThruNATS(t *testing.T) {
 		require.NotNil(t, msg.Reply)
 		tbs.NC.Publish(msg.Reply, []byte(response))
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()
@@ -144,6 +146,7 @@ func TestSendReceiveOnMQThruNATSHeaderInNotOut(t *testing.T) {
 		require.NotNil(t, msg.Reply)
 		tbs.NC.Publish(msg.Reply, []byte(response))
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()
@@ -191,6 +194,7 @@ func TestSendReceiveOnStanThruQueue(t *testing.T) {
 		require.NoError(t, err)
 		done <- string(bridgeMsg.Body)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	bridgeMsg := message.NewBridgeMessage([]byte(msg))
@@ -258,6 +262,7 @@ func TestSendReceiveOnMQThruStan(t *testing.T) {
 		require.NoError(t, err)
 		tbs.SC.Publish(replyToChannel, encoded)
 	})
+	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
 	mqmd := ibmmq.NewMQMD()

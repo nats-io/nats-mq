@@ -410,11 +410,9 @@ func (bridge *BridgeServer) ensureReconnectTimer() {
 		var doReconnect bool
 		interval := bridge.config.ReconnectInterval
 
-		select {
-		case doReconnect = <-timer.After(time.Duration(interval) * time.Millisecond):
-			if !doReconnect {
-				return
-			}
+		doReconnect = <-timer.After(time.Duration(interval) * time.Millisecond)
+		if !doReconnect {
+			return
 		}
 
 		bridge.reconnectLock.Lock()

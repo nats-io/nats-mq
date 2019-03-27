@@ -47,7 +47,7 @@ func main() {
 
 	for _, c := range connect {
 		tbs.NC.Subscribe(c.Subject, func(msg *nats.Msg) {
-			if 0 == atomic.LoadUint64(&count) {
+			if atomic.LoadUint64(&count) == 0 {
 				log.Printf("received first message")
 				start = time.Now() // start on the first message
 			}
@@ -79,6 +79,9 @@ func main() {
 		log.Printf("prepping queue %s with %d messages...", c.Queue, iterations)
 		for i := 0; i < iterations; i++ {
 			err = qObject.Put(putmqmd, pmo, buffer)
+			if err != nil {
+				log.Fatalf("error putting messages on queue")
+			}
 		}
 		qObject.Close(0)
 	}
