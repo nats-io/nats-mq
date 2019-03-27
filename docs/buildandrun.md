@@ -6,6 +6,7 @@ The nats-mq bridge is written in GO and uses the [IBM library for MQ-Series](`gi
 * [Building the Executable](#build)
   * [Setting up the MQSeries library](#mqlib)
   * [Running the library examples](#examples)
+  * [Building the bridge](#building)
 * [Testing the Bridge](#testing)
   * [Running the docker container for MQ Series](#docker)
   * [Connecting to the docker web admin](#web)
@@ -38,23 +39,11 @@ Once built, the executable will be named nats-mq and can be run with a similar s
 The nats-mq bridge is written in GO and uses the [IBM library for MQ-Series](`github.com/ibm-messaging/mq-golang`). This library uses `cgo` to build on the MQI libraries. As a result the MQ series libraries are required on any machine used to build the bridge.
 
 > There is a fix in the mq-golang library version `7486f4a0b63560e3d0fdcd084b7c0d52b783dc33` that is required for integer properties.
+
 > There is a fix in the mq-golang library version `c8adfe8` that is required for mq callbacks to work (currently in release 4.0.2 99a6892).
 
-The dependency on the MQ package requires v3.3.4 to fix an rpath issue on Darwin. The commit listed above is past this version.
+> The dependency on the MQ package requires v3.3.4 to fix an rpath issue on Darwin. The commit listed above is past this version.
 
-The bridge is implemented as a go module, all of the dependencies are specified in the go.mod file. For testing, the bridge embeds the nats-streaming-server which brings in a fair number of dependencies. The bridge executable only requires the nats and streaming clients as well as the mq-series library.
-
-Once you have the dependencies in place, you can use the provided Makefile to build the bridge:
-
-```bash
-% make compile
-```
-
-This will build the bridge, but not install it. The compile task will also check formatting and imports. You can use `go install` to install the bridge in your GOPATH.
-
-```bash
-% go install ./...
-```
 
 <a name="mqlib"></a>
 
@@ -94,6 +83,26 @@ for the default docker setup described below. This will allow you to run example
 
 ```bash
 % go run amqsput.go DEV.QUEUE.1 QM1
+```
+
+<a name="building"></a>
+
+### Building the Bridge
+
+The bridge is implemented as a go module, all of the dependencies are specified in the go.mod file. 
+
+For testing, the bridge embeds the nats-streaming-server which brings in a fair number of dependencies. The bridge executable only requires the nats and streaming clients as well as the mq-series library.
+
+Once you have the dependencies in place, you can use the provided Makefile to build the bridge:
+
+```bash
+% make compile
+```
+
+This will build the bridge, but not install it. The compile task will also check formatting and imports. You can use `go install` to install the bridge in your GOPATH.
+
+```bash
+% go install ./...
 ```
 
 <a name="testing"></a>
