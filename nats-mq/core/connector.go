@@ -224,13 +224,11 @@ func (mq *BridgeConnector) setUpCallback(target *ibmmq.MQObject, cb NATSCallback
 	}
 
 	return func() error {
-		gmo.MsgHandle.DltMH(ibmmq.NewMQDMHO()) // ignore the error
-
-		err := mq.qMgr.Ctl(ibmmq.MQOP_STOP, ctlo)
-		if err != nil {
-			return err
+		if err := mq.qMgr.Ctl(ibmmq.MQOP_STOP, ctlo); err != nil {
+			mq.bridge.Logger().Noticef("error stopping callbacks, %s", err.Error())
 		}
-		return mq.qMgr.Ctl(ibmmq.MQOP_DEREGISTER, ctlo)
+		gmo.MsgHandle.DltMH(ibmmq.NewMQDMHO()) // ignore the error
+		return nil
 	}, nil
 }
 
@@ -346,10 +344,14 @@ func (mq *BridgeConnector) createMQCallback(cb NATSCallback, conn Connector) fun
 			mq.inflight++
 			maxInFlight := mq.config.MaxMQMessagesInFlight
 			if maxInFlight <= 0 || mq.inflight == maxInFlight {
-				mq.qMgr.Cmit()
+				if err := mq.qMgr.Cmit(); err != nil {
+					mq.bridge.Logger().Noticef("failed to commit, %s", err.Error())
+					go mq.bridge.ConnectorError(conn, err) // run in a go routine so we can finish this method and unlock
+					return
+				}
 				mq.inflight = 0
 			} else if mq.inflightKicker == nil {
-				mq.inflightKicker = time.After(100 * time.Millisecond)
+				mq.inflightKicker = time.After(250 * time.Millisecond)
 				go func(mq *BridgeConnector) {
 					mq.Lock()
 					kicker := mq.inflightKicker
@@ -363,7 +365,18 @@ func (mq *BridgeConnector) createMQCallback(cb NATSCallback, conn Connector) fun
 
 					mq.Lock()
 					if mq.inflight > 0 && mq.qMgr != nil {
-						mq.qMgr.Cmit()
+						ctlo := ibmmq.NewMQCTLO()
+						ctlo.Options = ibmmq.MQCTLO_FAIL_IF_QUIESCING
+						if err := mq.qMgr.Ctl(ibmmq.MQOP_SUSPEND, ctlo); err != nil {
+							mq.bridge.Logger().Noticef("failed to suspend for commit in kicker, %s", err.Error())
+							go mq.bridge.ConnectorError(conn, err) // run in a go routine so we can finish this method and unlock
+						} else if err := mq.qMgr.Cmit(); err != nil {
+							mq.bridge.Logger().Noticef("failed to commit in kicker, %s", err.Error())
+							go mq.bridge.ConnectorError(conn, err) // run in a go routine so we can finish this method and unlock
+						} else if err := mq.qMgr.Ctl(ibmmq.MQOP_RESUME, ctlo); err != nil {
+							mq.bridge.Logger().Noticef("failed to resume after commit in kicker, %s", err.Error())
+							go mq.bridge.ConnectorError(conn, err) // run in a go routine so we can finish this method and unlock
+						}
 					}
 					mq.inflight = 0
 					mq.inflightKicker = nil

@@ -73,22 +73,26 @@ func (mq *Queue2STANConnector) Shutdown() error {
 		mq.shutdownCB = nil
 	}
 
-	var err error
-
 	queue := mq.queue
 	mq.queue = nil
 
 	if queue != nil {
-		err = queue.Close(0)
+		mq.bridge.Logger().Noticef("shutting down queue")
+		if err := queue.Close(0); err != nil {
+			mq.bridge.Logger().Noticef("error closing queue for %s, %s", mq.String(), err.Error())
+		}
 	}
 
 	if mq.qMgr != nil {
-		_ = mq.qMgr.Disc()
+		mq.bridge.Logger().Noticef("shutting down qmgr")
+		if err := mq.qMgr.Disc(); err != nil {
+			mq.bridge.Logger().Noticef("error disconnecting from queue manager for %s, %s", mq.String(), err.Error())
+		}
 		mq.qMgr = nil
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
-	return err // ignore the disconnect error
+	return nil
 }
 
 // CheckConnections ensures the nats/stan connection and report an error if it is down

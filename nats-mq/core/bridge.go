@@ -344,12 +344,12 @@ func (bridge *BridgeServer) ConnectorError(connector Connector, err error) {
 	}
 
 	description := connector.String()
-	bridge.logger.Errorf("a connector error has occurred, trying to restart %s, %s", description, err.Error())
+	bridge.logger.Errorf("a connector error has occurred, bridge will try to restart %s, %s", description, err.Error())
 
 	err = connector.Shutdown()
 
 	if err != nil {
-		bridge.logger.Warnf("error shutting down connector %s, trying to restart, %s", description, err.Error())
+		bridge.logger.Warnf("error shutting down connector %s, bridge will try to restart, %s", description, err.Error())
 	}
 
 	bridge.reconnect[connector.ID()] = connector

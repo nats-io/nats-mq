@@ -330,7 +330,7 @@ func (tbs *TestEnv) GetQueueManagerName() string {
 // GetMessageFromQueue uses the test environments extra connection to talk to the queue, bypassing the bridge's connection
 func (tbs *TestEnv) GetMessageFromQueue(qName string, waitMillis int32) (*ibmmq.MQMD, *ibmmq.MQGMO, []byte, error) {
 	mqod := ibmmq.NewMQOD()
-	openOptions := ibmmq.MQOO_INPUT_EXCLUSIVE
+	openOptions := ibmmq.MQOO_INPUT_SHARED //ibmmq.MQOO_INPUT_EXCLUSIVE
 	mqod.ObjectType = ibmmq.MQOT_Q
 	mqod.ObjectName = qName
 

@@ -205,6 +205,11 @@ func TestMaxInFlightKicker(t *testing.T) {
 
 	received := <-done
 	require.Equal(t, msg, received)
+
+	time.Sleep(1000) // Give the kicker time to fire
+	_, _, buff, err := tbs.GetMessageFromQueue(queue, 2000)
+	require.Error(t, err)
+	require.Nil(t, buff)
 }
 
 func TestMaxInFlight(t *testing.T) {

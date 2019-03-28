@@ -75,6 +75,11 @@ func (mq *Topic2StanConnector) Shutdown() error {
 
 	mq.bridge.Logger().Noticef("shutting down connection %s", mq.String())
 
+	sub := mq.sub
+	topic := mq.topic
+	mq.topic = nil
+	mq.sub = nil
+
 	if mq.shutdownCB != nil {
 		if err := mq.shutdownCB(); err != nil {
 			mq.bridge.Logger().Noticef("error stopping listener for %s, %s", mq.String(), err.Error())
@@ -82,36 +87,28 @@ func (mq *Topic2StanConnector) Shutdown() error {
 		mq.shutdownCB = nil
 	}
 
-	var err error
-
-	sub := mq.sub
-	topic := mq.topic
-	mq.topic = nil
-	mq.sub = nil
-
 	if sub != nil {
-		err = sub.Close(0)
-
-		if err != nil {
+		if err := sub.Close(0); err != nil {
 			mq.bridge.Logger().Noticef("error closing subscription for %s", mq.String())
 		}
 	}
 
 	if topic != nil {
-		err = topic.Close(0)
-
-		if err != nil {
+		if err := topic.Close(0); err != nil {
 			mq.bridge.Logger().Noticef("error closing topic for %s", mq.String())
 		}
 	}
 
 	if mq.qMgr != nil {
-		_ = mq.qMgr.Disc()
+		mq.bridge.Logger().Noticef("shutting down qmgr")
+		if err := mq.qMgr.Disc(); err != nil {
+			mq.bridge.Logger().Noticef("error disconnecting from queue manager for %s, %s", mq.String(), err.Error())
+		}
 		mq.qMgr = nil
 		mq.bridge.Logger().Tracef("disconnected from queue manager for %s", mq.String())
 	}
 
-	return nil // ignore the disconnect error
+	return nil
 }
 
 // CheckConnections ensures the nats/stan connection and report an error if it is down
