@@ -216,10 +216,6 @@ The second is an optional id, which is used in monitoring:
 
 * `id` - (optional) user defined id that will tag the connection in monitoring JSON.
 
-The third is a performance tuning parameter
-
-* `MaxMQMessagesInFlight` - (optional) if set to a number > 0 the connector will allow up to that many messages to come in from MQ series before it commits them. A failure will always result in a rollback, so there is a possibility of reading the same message more than once if this value is set to any positive number greater than one. The default is 0, which is equivalent to 1. Queues with sparse messages can either not set this, or may experience a very short, < 1 second, wait for each message to be committed.
-
 The remaining properties for a connector can be split by the type of connector used. To specify the MQ target/source, use either `topic` or `queue` along with the `mq` settings:
 
 * `topic` - (exclusive with queue) the Topic to connect to

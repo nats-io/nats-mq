@@ -140,6 +140,5 @@ type ConnectorConfig struct {
 	IncomingBufferSize  int  // buffer size for polling
 	IncomingMessageWait int  // wait time for polling in ms
 
-	MaxMQMessagesInFlight int
-	ExcludeHeaders        bool //exclude headers, and just send the body to/from nats messages
+	ExcludeHeaders bool //exclude headers, and just send the body to/from nats messages
 }

@@ -17,22 +17,28 @@ import (
 
 var iterations int
 var useTLS bool
+var queueCount int
+var showStats bool
 
 func main() {
 	flag.IntVar(&iterations, "i", 1000, "iterations, docker image defaults to 5000 in queue")
+	flag.IntVar(&queueCount, "q", 5, "number of queues to run against, at most 25 (see test_utils.go), default is 5")
 	flag.BoolVar(&useTLS, "tls", false, "use tls")
+	flag.BoolVar(&showStats, "stats", false, "show stats json at the end")
 	flag.Parse()
+
 	msg := strings.Repeat("stannats", 128) // 1024 bytes
 
 	connect := []conf.ConnectorConfig{}
 
-	for i := 1; i <= 10; i++ {
+	log.Printf("preparing bridge with %d connectors", queueCount)
+
+	for i := 1; i <= queueCount; i++ {
 		connect = append(connect, conf.ConnectorConfig{
-			Type:                  "Queue2NATS",
-			Subject:               fmt.Sprintf("test.%d", i),
-			Queue:                 fmt.Sprintf("TEST.QUEUE.%d", i),
-			ExcludeHeaders:        true,
-			MaxMQMessagesInFlight: 25,
+			Type:           "Queue2NATS",
+			Subject:        fmt.Sprintf("test.%d", i),
+			Queue:          fmt.Sprintf("TEST.QUEUE.%d", i),
+			ExcludeHeaders: true,
 		})
 	}
 
@@ -56,7 +62,7 @@ func main() {
 			}
 
 			newCount := atomic.AddUint64(&count, 1)
-			if newCount%5000 == 0 {
+			if newCount%1000 == 0 {
 				log.Printf("received count = %d", count)
 			}
 
@@ -103,6 +109,9 @@ func main() {
 
 	diff := end.Sub(start)
 	rate := float64(maxCount) / float64(diff.Seconds())
-	log.Printf("Bridge Stats:\n\n%s\n", statsJSON)
+
+	if showStats {
+		log.Printf("Bridge Stats:\n\n%s\n", statsJSON)
+	}
 	log.Printf("Read %d messages from %d MQ queues via a bridge to NATS in %s, or %.2f msgs/sec", maxCount, len(connect), diff, rate)
 }

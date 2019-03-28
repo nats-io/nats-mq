@@ -25,11 +25,10 @@ func main() {
 
 	connect := []conf.ConnectorConfig{
 		{
-			Type:                  "Queue2NATS",
-			Subject:               subject,
-			Queue:                 queue,
-			ExcludeHeaders:        true,
-			MaxMQMessagesInFlight: 10,
+			Type:           "Queue2NATS",
+			Subject:        subject,
+			Queue:          queue,
+			ExcludeHeaders: true,
 		},
 	}
 
