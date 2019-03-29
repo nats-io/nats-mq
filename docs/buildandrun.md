@@ -93,10 +93,10 @@ For testing, the bridge embeds the nats-streaming-server which brings in a fair 
 Once you have the dependencies in place, you can use the provided Makefile to build the bridge:
 
 ```bash
-% make compile
+% make
 ```
 
-This will build the bridge, but not install it. The compile task will also check formatting and imports. You can use `go install` to install the bridge in your GOPATH.
+This will build the bridge, but not install it. The compile task will also check formatting and imports. You can use `go install` to install the bridge in your GOPATH. You may see `ld: warning: directory not found for option '-L/opt/mqm/lib64'` but you can ignore it. If you can build the mq library, then your environment should be set up to build the bridge, as these variables are required for building the bridge as well.
 
 ```bash
 % go install ./...
