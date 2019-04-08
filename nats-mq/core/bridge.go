@@ -15,7 +15,7 @@ import (
 	"github.com/nats-io/nats-mq/nats-mq/logging"
 )
 
-var version = "0.0.0-dev"
+var version = "0.5"
 
 // BridgeServer represents the bridge server
 type BridgeServer struct {
