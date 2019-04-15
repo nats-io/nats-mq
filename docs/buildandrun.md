@@ -50,7 +50,7 @@ The entry point takes the configuration file at `/mqbridge.conf`. To run with do
 
 For MacOS you will need to map the host appropriately, for example you might use something like:
 
-```
+``` yaml
 nats: {
   Servers: ["docker.for.mac.host.internal:4222"],
   ConnectTimeout: 5000,
@@ -59,7 +59,20 @@ nats: {
 }
 ```
 
-in the configuration file.
+in the configuration file. There is a single port in the bridge, for monitoring. If you set this port you will need to map it in docker. For example,
+if you set:
+
+``` yaml
+monitoring: {
+  httpport: 9090,
+}
+```
+
+you can run with:
+
+```bash
+% docker run -v ~/Desktop/mqbridge_docker.conf:/mqbridge.conf -p 9090:9090 <imagename>
+```
 
 ## Building the Executable
 
