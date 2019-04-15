@@ -34,6 +34,33 @@ Once built, the executable will be named nats-mq and can be run with a similar s
 
 <a name="build"></a>
 
+## Running the Bridge via the Docker file
+
+There is a primitive docker file to run the bridge. To build the file:
+
+```bash
+% docker build .
+```
+
+The entry point takes the configuration file at `/mqbridge.conf`. To run with docker, map a configuration file to that location with a volume:
+
+```bash
+% docker run -v ~/Desktop/dockerbridge.conf:/mqbridge.conf <imagename>
+```
+
+For MacOS you will need to map the host appropriately, for example you might use something like:
+
+```
+nats: {
+  Servers: ["docker.for.mac.host.internal:4222"],
+  ConnectTimeout: 5000,
+  MaxReconnects: 5,
+  ReconnectWait: 5000,
+}
+```
+
+in the configuration file.
+
 ## Building the Executable
 
 The nats-mq bridge is written in GO and uses the [IBM library for MQ-Series](https://github.com/ibm-messaging/mq-golang). This library uses `cgo` to build on the MQI libraries. As a result the MQ series libraries are required on any machine used to build the bridge.
