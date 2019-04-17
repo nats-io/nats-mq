@@ -5,6 +5,7 @@ The bridge uses a single configuration file passed on the command line or enviro
 * [Specifying the Configuration File](#specify)
 * [Shared](#root)
 * [TLS](#tls)
+* [Logging](#logging)
 * [Monitoring](#monitoring)
 * [NATS](#nats)
 * [NATS Streaming](#stan)
@@ -52,6 +53,30 @@ NATS, streaming and HTTP configurations take an optional TLS setting. The TLS co
 * `key` - key for the certificate store specified in cert
 
 MQ SSL properties are configured via a different structure discussed [below](#mq).
+
+<a name="logging"></a>
+
+### Logging
+
+Logging is configured in a manner similar to the nats-server:
+
+```yaml
+logging: {
+  time: true,
+  debug: false,
+  trace: false,
+  colors: true,
+  pid: false,
+}
+```
+
+These properties are configured for:
+
+* `time` - include the time in logging statements
+* `debug` - include debug logging
+* `trace` - include verbose, or trace, logging
+* `colors` - colorize the logging statements
+* `pid` - include the process id in logging statements
 
 <a name="monitoring"></a>
 
