@@ -8,11 +8,11 @@ The nats-mq bridge is written in GO and uses the [IBM library for MQ-Series](`gi
   * [Running the library examples](#examples)
   * [Building the bridge](#building)
 * [Testing the Bridge](#testing)
-  * [Running the docker container for MQ Series](#docker)
+* [Developer Notes](#developer)
+* [Running the docker container for MQ Series](#docker)
   * [Connecting to the docker web admin](#web)
   * [Connecting with an application](#app)
   * [Using TLS](#tls)
-* [Developer Notes](#developer)
 
 <a name="run"></a>
 
@@ -158,9 +158,19 @@ or
 % go test ./...
 ```
 
+<a name="developer"></a>
+
+## Developer notes
+
+* The MQ series code can use callbacks or polling with get, to receive messages from Queues and Topics. There have been issues in the library for each so by having both the configuration can be used to pick one that works for the current setup.
+* Using docker for tests will eat up docker space, you may need to run `docker system prune` once in a while to clean this up. The symptom of a full cache will be that the tests take forever to run because they fail to run the MQ series server image and spend 30s trying to connect before failing.
+* `nats-mq/core/test_util.go` has the implementation used to run the nats server, the streaming server and the MQ image for each test.
+* A number of performance "tests" are provided in the `performance` folder.
+* The tests start and stop the MQ docker image repeatedly so can take over 5 minutes to run, you can use `docker ps` to keep an eye on things, images shouldn't last more than a couple minutes
+
 <a name="docker"></a>
 
-#### Running the Docker Image for MQ Series
+## Running the Docker Image for MQ Series
 
 See [https://hub.docker.com/r/ibmcom/mq/](https://hub.docker.com/r/ibmcom/mq/) for instructions on getting the docker image for the MQ series server. There is information in the [usage documentation](https://github.com/ibm-messaging/mq-container/blob/master/docs/usage.md) about running the container. The repository contains other documentation as well that may be helpful. We have tried to capture the main points here.
 
@@ -184,7 +194,7 @@ The bridge's `scripts` folder contains scripts to run the docker image.
 
 <a name="web"></a>
 
-#### Connecting to the Web Admin
+### Connecting to the Web Admin
 
 If you need to connect to the web admin for the docker image. Use [https://localhost:9443/ibmmq/console/](https://localhost:9443/ibmmq/console/). The default login is:
 
@@ -197,7 +207,7 @@ Chrome may complain because the certificate for the server isn't valid, but go o
 
 <a name="app"></a>
 
-#### Connecting With an Application
+### Connecting With an Application
 
 For applications the login is documented as:
 
@@ -210,7 +220,7 @@ We found that simply turning off user name and password works.
 
 <a name="tls"></a>
 
-#### TLS Setup
+### TLS Setup
 
 See [this ibm post](https://developer.ibm.com/messaging/learn-mq/mq-tutorials/secure-mq-tls/) for information about how the test TLS files for the docker image were created. The generated certs/keys are in the `resources` folder under `mqm`. A script is provided `scripts/run_mq_tls.sh` to run the server with this TLS setting. The TLS script will also set the app password to `passw0rd` for testing.
 
@@ -219,13 +229,3 @@ The server cert has the password `k3ypassw0rd`.
 The client cert has the password `tru5tpassw0rd`, and the label `QM1.cert`
 
 We created the kdb file using `runmqakm -cert -export -db client_key.p12 -pw tru5tpassw0rd -target_stashed -target_type kdb -target client.kdb -label "QM1.cert"`.
-
-<a name="developer"></a>
-
-### Developer notes
-
-* The MQ series code can use callbacks or polling with get, to receive messages from Queues and Topics. There have been issues in the library for each so by having both the configuration can be used to pick one that works for the current setup.
-* Using docker for tests will eat up docker space, you may need to run `docker system prune` once in a while to clean this up. The symptom of a full cache will be that the tests take forever to run because they fail to run the MQ series server image and spend 30s trying to connect before failing.
-* `nats-mq/core/test_util.go` has the implementation used to run the nats server, the streaming server and the MQ image for each test.
-* A number of performance "tests" are provided in the `performance` folder.
-* The tests start and stop the MQ docker image repeatedly so can take over 5 minutes to run, you can use `docker ps` to keep an eye on things, images shouldn't last more than a couple minutes

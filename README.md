@@ -30,8 +30,11 @@ The bridge is [configured with a NATS server-like format](docs/config.md), in a 
 
 An [optional HTTP/HTTPS endpoint](docs/monitoring.md) can be used for monitoring.
 
+A [Tutorial](docs/tutorial.md) is included in the documentation that will walk through a full example of running with NATS, MQ series, the bridge, a GO client and a Java client.
+
 ## Documentation
 
+* [Tutorial](docs/tutorial.md)
 * [Build & Run the Bridge](docs/buildandrun.md)
 * [Configuration](docs/config.md)
 * [Message Format](docs/messages.md)
