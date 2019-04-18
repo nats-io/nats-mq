@@ -16,7 +16,7 @@ Bridges inherently have a lot of parts, let's walkthrough a setup with NATS, MQ 
 
 * The `tock` example will subscribe to *tock* and print the contents of each message received
 
-In order to run the tutorial, we will be:
+In order to run the tutorial, we will:
 
 1. [Prepare your Terminal](#terminal)
 1. [Run the NATS Server](#gnatsd)
@@ -154,7 +154,7 @@ We should see these two connectors come up when we run the bridge.
 
 <a name="localbridge"></a>
 
-## 5. Run the Bridge Locally
+## 5(a). Run the Bridge Locally
 
 If you have [built](buildandrun.md) the bridge locally, you can run it with the tiktok.conf file:
 
@@ -181,7 +181,7 @@ Notice that the connectors are created and the monitoring is enabled at port 909
 
 <a name="dockerbridge"></a>
 
-## 5.5 Run the Bridge with Docker
+## 5(b). Run the Bridge with Docker
 
 Rather than go through the full [build](buildandrun.md) process, you can use the docker image for the bridge.
 
