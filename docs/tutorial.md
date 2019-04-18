@@ -2,11 +2,11 @@
 
 Bridges inherently have a lot of parts, let's walkthrough a setup with NATS, MQ series, the bridge, a GO client and a Java client. The code for the two clients is available in this repo under the `message/examples` and `java/src/main/java/io/nats/mqbridge/examples` folders. The high level architecture is this:
 
-* The bridge is configured to map:
+* The bridge will be configured to map:
   * The subject *tick* to the queue *DEV.QUEUE.1*
   * The queue *DEV.QUEUE.1* to the subject *tock*
 
-* The `tick` example sends a message to NATS on the subject *tick*. This message contains
+* The `tick` example will send a message to NATS on the subject *tick*. This message contains
   * A user specified string
   * A counter property
   * A property with the current time as a unix timestamp
@@ -16,9 +16,23 @@ Bridges inherently have a lot of parts, let's walkthrough a setup with NATS, MQ 
 
 * The `tock` example will subscribe to *tock* and print the contents of each message received
 
-In order to run the tutorial, we will be launching the nats-server, the bridge, the MQ server docker image a go version of tick and a Java version of tock.
+In order to run the tutorial, we will be:
 
-## 0. Preparing your terminal
+1. [Prepare your Terminal](#terminal)
+1. [Run the NATS Server](#gnatsd)
+1. [Run the MQ Server](#mqserver)
+1. [Configure the Bridge](#config)
+1. [Run the Bridge Locally](#localbridge)
+ or [Run the Bridge with Docker](#dockerbridge)
+1. [Check the Monitoring Page](#monitoring)
+1. [Build and Run the Go Tock Example](#gotock)
+1. [Build and Run the Java Tick Example](#javatick)
+1. [Compare the Output](#output)
+1. [Multiplex with Multiple Tickers](#both)
+
+<a name="terminal"></a>
+
+## 1. Prepare your Terminal
 
 All of the commands in this tutorial assume that you are in the `nats-mq` repository folder, at the root.
 
@@ -33,7 +47,9 @@ You will likely want 5 shells open to make this easier.
 
 This tutorial relies on docker to reduce dependency requirements, but you can run things directly by altering the bridge configuration and following the steps in [buildandrun.md](buildandrun.md) to build the bridge.
 
-## 1. Running the NATS server
+<a name="gnatsd"></a>
+
+## 2. Run the NATS server
 
 The nats-server for this tutorial doesn't need any special settings and can be run on the default port. Simply execute:
 
@@ -48,7 +64,9 @@ The nats-server for this tutorial doesn't need any special settings and can be r
 
 > If you want to run the server elsewhere, be sure to update the bridge [configuration](config.md) to match.
 
-## 2. Run the MQ Server
+<a name="mqserver"></a>
+
+## 3. Run the MQ Server
 
 See [https://hub.docker.com/r/ibmcom/mq/](https://hub.docker.com/r/ibmcom/mq/) for instructions on getting the docker image for the MQ series server. A script is provided to launch the docker image for the bridge in the `scripts` folder, but we can also run it manually using:
 
@@ -70,7 +88,9 @@ This will create some default queues, in particular the *DEV.QUEUE.1* queue we w
 
 > If you want to use a different MQ server or queue, you will need to update the bridge [configuration](config.md) appropriately.
 
-## 3. Configure the Bridge
+<a name="config"></a>
+
+## 4. Configure the Bridge
 
 A copy of the configuration we will use is in resources/tiktok.conf:
 
@@ -132,7 +152,9 @@ This configuration:
 
 We should see these two connectors come up when we run the bridge.
 
-## 4. Run the Bridge Locally
+<a name="localbridge"></a>
+
+## 5. Run the Bridge Locally
 
 If you have [built](buildandrun.md) the bridge locally, you can run it with the tiktok.conf file:
 
@@ -157,7 +179,9 @@ If you have [built](buildandrun.md) the bridge locally, you can run it with the 
 
 Notice that the connectors are created and the monitoring is enabled at port 9090. No NATS streaming was configured, so that connection was skipped.
 
-## 4.5 Run the Bridge with Docker
+<a name="dockerbridge"></a>
+
+## 5.5 Run the Bridge with Docker
 
 Rather than go through the full [build](buildandrun.md) process, you can use the docker image for the bridge.
 
@@ -172,15 +196,13 @@ Successfully tagged nats-io/mq-bridge:0.5
 
 This will create an image with the tag `nats-io/mq-bridge` and the version `0.5`. Note the build can take a few minutes.
 
-Once the image is complete we can run the bridge using our configuration file.
-
-Running the docker bridge requires a different configuration file that doesn't use *localhost*. In order to get the tiktok.conf to work on a mac, for example, you will need to replace:
+Once the image is complete we can run the bridge but we need a new configuration file that doesn't use *localhost*. In order to get the tiktok.conf to work on a mac, for example, you will need to replace:
 
 localhost -> docker.for.mac.host.internal
 
 A version of this file is available at `resources/mac.tiktok.conf`. If you are running on another OS, you may need to use a different mapping (please feel free to submit a PR with a config file for other operating systems.)
 
-The bridge docker file expects the configuration to be available at `/mqbridge.conf` so we will map our example config to that location when we run docker. Also, the monitoring port in the config is set to 9090 so we will map that port out of the docker image:
+The bridge docker image expects the configuration to be available at `/mqbridge.conf` so we will map our example config to that location when we run docker. Also, the monitoring port in the config is set to 9090 so we will map that port out of the docker image:
 
 ```bash
  % docker run -v `pwd`/resources/mac.tiktok.conf:/mqbridge.conf -p 9090:9090 nats-io/mq-bridge:0.5
@@ -203,13 +225,17 @@ The bridge docker file expects the configuration to be available at `/mqbridge.c
 
 Notice that the connectors are created and the monitoring is enabled at port 9090. No NATS streaming was configured, so that connection was skipped.
 
-## 5. Check the monitoring page
+<a name="monitoring"></a>
+
+## 6. Check the Monitoring Page
 
 You should be able to use your browser to check on the monitoring status for the bridge. Go to `http://localhost:9090`. There should be two links, one for varz and one for healthz. The healthz page will be empty, but shouldn't return an error. The varz page will show the connectors, with no data processed, see the bytes_in and bytes_out for each connector.
 
-## 6. Build and Run the go Tock Example
+<a name="gotock"></a>
 
-The go example app should run without all the [MQ requirements](buildandrun.md), but it will download numerous go packages since it is part of the larger bridge repository. We will use `go run` to make sure that all the downloads take place. You can always build and install the example and run the executable directly.
+## 7. Build and Run the Go Tock Example
+
+The Go example app should run without all the [MQ requirements](buildandrun.md), but it will download numerous go packages since it is part of the larger bridge repository. We will use `go run` to make sure that all the downloads take place. You can always build and install the example and run the executable directly.
 
 The tock example doesn't listen to MQ-Series, it is listening to the *tock* subject which will be filled by the bridge based on messages coming in to a queue.
 
@@ -222,7 +248,9 @@ Listening on tock...
 
 With this running, we are ready to start sending messages.
 
-## 7. Build and Run the Java Tick Example
+<a name="javatick"></a>
+
+## 8. Build and Run the Java Tick Example
 
 The Java helper library and tick/tock examples is in `helpers/java` and uses gradle to build and run. If you don't have gradle you will need to install it.
 
@@ -244,7 +272,9 @@ Once built, you can run the example with the NATS server URL and your custom mes
 
 The tick example sends a message every second. Let's look at the output...
 
-## 8. Compare the Output
+<a name="output"></a>
+
+## 9. Compare the Output
 
 Tick will print each message as it sends it:
 
@@ -284,7 +314,9 @@ Received message:
 
 Messages have a unique counter, time and id. Each message will travel from tick to NATS to the bridge to MQ-Series to the bridge to NATS and finally to the tock example.
 
-## 9. Multiplexing
+<a name="both"></a>
+
+## 10. Multiplex with Multiple Tickers
 
 A version of tick and tock are available in Java and go and the examples use core NATS so you can run both the Java and go versions at the same time and see the mix of messages from the Go ticker and the Java ticker:
 
