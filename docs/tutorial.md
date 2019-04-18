@@ -156,7 +156,7 @@ We should see these two connectors come up when we run the bridge.
 
 ## 5(a). Run the Bridge Locally
 
-If you have [built](buildandrun.md) the bridge locally, you can run it with the tiktok.conf file:
+If you have [build](buildandrun.md) the bridge locally, you can run it with the tiktok.conf file. If you want to run with docker skip to [5(b)](#dockerbridge).
 
 ```bash
 %  nats-mq -c resources/tiktok.conf
@@ -188,7 +188,7 @@ Rather than go through the full [build](buildandrun.md) process, you can use the
 First, we need to build the docker image:
 
 ```bash
-% docker build -t nats-io/mq-bridge:0.5 .
+% docker build -t "nats-io/mq-bridge:0.5" .
 ...
 Successfully built c785b84f3b6d
 Successfully tagged nats-io/mq-bridge:0.5
@@ -205,7 +205,7 @@ A version of this file is available at `resources/mac.tiktok.conf`. If you are r
 The bridge docker image expects the configuration to be available at `/mqbridge.conf` so we will map our example config to that location when we run docker. Also, the monitoring port in the config is set to 9090 so we will map that port out of the docker image:
 
 ```bash
- % docker run -v `pwd`/resources/mac.tiktok.conf:/mqbridge.conf -p 9090:9090 nats-io/mq-bridge:0.5
+ % docker run -v `pwd`/resources/mac.tiktok.conf:/mqbridge.conf -p 9090:9090 "nats-io/mq-bridge:0.5"
 2019/04/18 17:46:10.458755 [INF] loading configuration from "/mqbridge.conf"
 2019/04/18 17:46:10.461325 [INF] starting MQ-NATS bridge, version 0.5
 2019/04/18 17:46:10.461364 [INF] server time is Thu Apr 18 17:46:10 UTC 2019
@@ -237,7 +237,11 @@ You should be able to use your browser to check on the monitoring status for the
 
 The Go example app should run without all the [MQ requirements](buildandrun.md), but it will download numerous go packages since it is part of the larger bridge repository. We will use `go run` to make sure that all the downloads take place. You can always build and install the example and run the executable directly.
 
-The tock example doesn't listen to MQ-Series, it is listening to the *tock* subject which will be filled by the bridge based on messages coming in to a queue.
+The tock example doesn't listen to MQ-Series, it is listening to the *tock* subject which will be filled by the bridge based on messages coming in to a queue. It does use a decoder for msgpack, so you should download that package with:
+
+```bash
+% go get github.com/ugorji/go/codec
+```
 
 To run the tock listener, which will print messages from the tick example:
 
