@@ -249,6 +249,9 @@ The remaining properties for a connector can be split by the type of connector u
 For NATS connections, specify:
 
 * `subject` - the subject to subscribe/publish to, depending on the connections direction.
+* `natsqueue` - the queue group to use in subscriptions, this is optional but useful for load balancing.
+
+Keep in mind that NATS queue groups do not guarantee ordering, since the queue subscribers can be on different nats-servers in a cluster. So if you have to bridges running with connectors on the same NATS queue/subject pair and have a high message rate you may get messages in the MQ queue/topic out of order.
 
 For streaming connections, there is a single required setting and several optional ones:
 
