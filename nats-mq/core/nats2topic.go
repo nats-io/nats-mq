@@ -63,7 +63,7 @@ func (mq *NATS2TopicConnector) Start() error {
 
 	mq.topic = topicObject
 
-	sub, err := mq.subscribeToNATS(mq.config.Subject, mq.topic)
+	sub, err := mq.subscribeToNATS(mq.config.Subject, mq.config.NatsQueue, mq.topic)
 	if err != nil {
 		return err
 	}

@@ -379,8 +379,8 @@ func (mq *BridgeConnector) natsMessageHandler(natsMsg []byte, replyTo string) er
 }
 
 // set up a nats subscription, assumes the lock is held
-func (mq *BridgeConnector) subscribeToNATS(subject string, dest *ibmmq.MQObject) (*nats.Subscription, error) {
-	return mq.bridge.NATS().Subscribe(subject, func(m *nats.Msg) {
+func (mq *BridgeConnector) subscribeToNATS(subject string, natsQueue string, dest *ibmmq.MQObject) (*nats.Subscription, error) {
+	callback := func(m *nats.Msg) {
 		mq.Lock()
 		defer mq.Unlock()
 		start := time.Now()
@@ -412,7 +412,13 @@ func (mq *BridgeConnector) subscribeToNATS(subject string, dest *ibmmq.MQObject)
 			mq.stats.AddMessageOut(int64(len(buffer)))
 			mq.stats.AddRequestTime(time.Since(start))
 		}
-	})
+	}
+
+	if natsQueue == "" {
+		return mq.bridge.NATS().Subscribe(subject, callback)
+	}
+
+	return mq.bridge.NATS().QueueSubscribe(subject, natsQueue, callback)
 }
 
 // subscribeToChannel uses the bridges STAN connection to subscribe based on the config

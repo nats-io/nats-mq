@@ -143,7 +143,8 @@ type ConnectorConfig struct {
 	StartAtSequence int64  // Start position for stan connection, -1 means StartWithLastReceived, 0 means DeliverAllAvailable (default)
 	StartAtTime     int64  // Start time, as Unix, time takes precedence over sequence
 
-	Subject string // Used for nats connections
+	Subject   string // Used for nats connections
+	NatsQueue string // Optional, used for nats connections
 
 	MQ    MQConfig // Connection information, nats connections are shared
 	Topic string   // Used for the mq side of things
