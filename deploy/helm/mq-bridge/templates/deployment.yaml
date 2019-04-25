@@ -2,20 +2,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nats-mq
+  name: {{ .Values.name }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: nats-mq
+      name: {{ .Values.name }}
   template:
     metadata:
       labels:
-        name: nats-mq
+        name: {{ .Values.name }}
     spec:
       containers:
       - name: nats-mq
-        image: connecteverything/mq-bridge:0.5
+        image: {{ .Values.image }}
         imagePullPolicy: Always
         command:
         - /go/bin/nats-mq
@@ -27,14 +27,4 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: nats-mq-conf
----
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: nats-mq-conf
-data:
-  nats-mq.conf: |
-    nats {
-      Servers ["nats-mq-svc:4222"]
-    }
+            name: {{ .Values.name }}-conf
