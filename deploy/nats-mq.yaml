@@ -1,0 +1,47 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nats-mq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: nats-mq
+  template:
+    metadata:
+      labels:
+        name: nats-mq
+    spec:
+      containers:
+      - name: nats-mq
+        image: connecteverything/mq-bridge:0.5
+        imagePullPolicy: Always
+        command:
+        - /go/bin/nats-mq
+        - -c
+        - /etc/nats-mq/nats-mq.conf
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nats-mq/
+      volumes:
+        - name: config
+          configMap:
+            name: nats-mq-conf
+---
+apiVersion: "nats.io/v1alpha2"
+kind: NatsCluster
+metadata:
+  name: "nats-mq-svc"
+spec:
+  size: 3
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nats-mq-conf
+data:
+  nats-mq.conf: |
+    nats {
+      Servers ["nats-mq-svc:4222"]
+    }
