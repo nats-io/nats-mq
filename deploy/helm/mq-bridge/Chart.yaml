@@ -1,0 +1,16 @@
+name: nats-mq
+version: 0.1.0
+appVersion: 0.5.0
+description: A simple, but generic, bridge between NATS or NATS streaming and MQ Series queues and topics.
+keywords:
+- addressing
+- discovery
+- messaging
+- nats
+- pubsub
+home: https://github.com/nats-io/nats-mq
+sources:
+- https://github.com/nats-io/nats-mq
+maintainers:
+- name: wallyqs
+  email: wally@synadia.com

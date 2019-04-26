@@ -1,0 +1,5 @@
+name: nats-mq-bridge
+image: connecteverything/mq-bridge:0.5
+nats:
+  # The NATS endpoint to which it will connect.
+  url: nats-mq-svc:4222

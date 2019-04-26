@@ -1,0 +1,10 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ .Values.name }}-conf
+data:
+  nats-mq.conf: |
+    nats {
+      Servers ["{{ .Values.nats.url }}"]
+    }
