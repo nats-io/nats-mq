@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	stan "github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/message"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
+	stan "github.com/nats-io/stan.go"
 	"github.com/stretchr/testify/require"
 )
 

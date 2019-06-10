@@ -15,9 +15,9 @@ package core
 import (
 	"testing"
 
-	stan "github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
 	"github.com/nats-io/nuid"
+	stan "github.com/nats-io/stan.go"
 	"github.com/stretchr/testify/require"
 )
 

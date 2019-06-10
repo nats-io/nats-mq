@@ -14,8 +14,8 @@
 package conf
 
 import (
-	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/nats-mq/logging"
+	stan "github.com/nats-io/stan.go"
 )
 
 // Queue2NATS type for an mq queue to nats connector
