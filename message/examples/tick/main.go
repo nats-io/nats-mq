@@ -15,13 +15,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/nats-io/nats-mq/message"
-	"github.com/nats-io/nuid"
 	"log"
 	"runtime"
 	"time"
 
-	"github.com/nats-io/go-nats"
+	"github.com/nats-io/nats-mq/message"
+	"github.com/nats-io/nuid"
+
+	"github.com/nats-io/nats.go"
 )
 
 func usage() {

@@ -21,10 +21,10 @@ import (
 	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	"github.com/nats-io/go-nats"
-	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
+	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nuid"
+	stan "github.com/nats-io/stan.go"
 )
 
 // Connector is the abstraction for all of the bridge connector types

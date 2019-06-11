@@ -29,13 +29,13 @@ import (
 	"time"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	gnatsserver "github.com/nats-io/gnatsd/server"
-	gnatsd "github.com/nats-io/gnatsd/test"
-	nats "github.com/nats-io/go-nats"
-	stan "github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
+	ns "github.com/nats-io/nats-server/v2/server"
+	nst "github.com/nats-io/nats-server/v2/test"
 	nss "github.com/nats-io/nats-streaming-server/server"
+	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nuid"
+	stan "github.com/nats-io/stan.go"
 )
 
 // TestEnv encapsulate a bridge test environment
@@ -43,7 +43,7 @@ type TestEnv struct {
 	MQServer *MQTestServer
 	QMgr     *ibmmq.MQQueueManager // For bypassing the bridge connection
 
-	Gnatsd *gnatsserver.Server
+	GNATSD *ns.Server
 	Stan   *nss.StanServer
 
 	NC *nats.Conn // for bypassing the bridge
@@ -192,7 +192,7 @@ func (tbs *TestEnv) StartBridge(connections []conf.ConnectorConfig, useTLS bool)
 // StartNATSandStan starts up the nats and stan servers
 func (tbs *TestEnv) StartNATSandStan(useTLS bool, port int, clusterID string, clientID string, bridgeClientID string) error {
 	var err error
-	opts := gnatsd.DefaultTestOptions
+	opts := nst.DefaultTestOptions
 	opts.Port = port
 
 	if useTLS {
@@ -200,17 +200,17 @@ func (tbs *TestEnv) StartNATSandStan(useTLS bool, port int, clusterID string, cl
 		opts.TLSKey = "../../resources/certs/server-key.pem"
 		opts.TLSTimeout = 5
 
-		tc := gnatsserver.TLSConfigOpts{}
+		tc := ns.TLSConfigOpts{}
 		tc.CertFile = opts.TLSCert
 		tc.KeyFile = opts.TLSKey
 
-		opts.TLSConfig, err = gnatsserver.GenTLSConfig(&tc)
+		opts.TLSConfig, err = ns.GenTLSConfig(&tc)
 
 		if err != nil {
 			return err
 		}
 	}
-	tbs.Gnatsd = gnatsd.RunServer(&opts)
+	tbs.GNATSD = nst.RunServer(&opts)
 
 	if useTLS {
 		tbs.natsURL = fmt.Sprintf("tls://localhost:%d", opts.Port)
@@ -305,8 +305,8 @@ func (tbs *TestEnv) StopNATS() error {
 		tbs.Stan.Shutdown()
 	}
 
-	if tbs.Gnatsd != nil {
-		tbs.Gnatsd.Shutdown()
+	if tbs.GNATSD != nil {
+		tbs.GNATSD.Shutdown()
 	}
 
 	return nil
@@ -326,8 +326,8 @@ func (tbs *TestEnv) RestartNATS(useTLS bool) error {
 		tbs.Stan.Shutdown()
 	}
 
-	if tbs.Gnatsd != nil {
-		tbs.Gnatsd.Shutdown()
+	if tbs.GNATSD != nil {
+		tbs.GNATSD.Shutdown()
 	}
 
 	err := tbs.StartNATSandStan(useTLS, tbs.natsPort, tbs.clusterName, tbs.clientID, tbs.bridgeClientID)
@@ -432,8 +432,8 @@ func (tbs *TestEnv) Close() {
 		tbs.Stan.Shutdown()
 	}
 
-	if tbs.Gnatsd != nil {
-		tbs.Gnatsd.Shutdown()
+	if tbs.GNATSD != nil {
+		tbs.GNATSD.Shutdown()
 	}
 }
 

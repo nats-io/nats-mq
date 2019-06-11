@@ -19,8 +19,8 @@ import (
 	"fmt"
 
 	"github.com/ibm-messaging/mq-golang/ibmmq"
-	"github.com/nats-io/go-nats"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
+	nats "github.com/nats-io/nats.go"
 )
 
 // NATS2TopicConnector connects a NATS subject to an MQ topic

@@ -16,8 +16,8 @@
 package core
 
 import (
-	nats "github.com/nats-io/go-nats"
-	stan "github.com/nats-io/go-nats-streaming"
+	nats "github.com/nats-io/nats.go"
+	stan "github.com/nats-io/stan.go"
 )
 
 func (bridge *BridgeServer) natsError(nc *nats.Conn, sub *nats.Subscription, err error) {

@@ -43,7 +43,7 @@ A [Tutorial](docs/tutorial.md) is included in the documentation that will walk t
 ## External Resources
 
 * [NATS](https://nats.io/documentation/)
-* [NATS server](https://github.com/nats-io/gnatsd)
+* [NATS server](https://github.com/nats-io/nats-server)
 * [NATS Streaming](https://github.com/nats-io/nats-streaming-server)
 * [MQ Library](https://github.com/ibm-messaging/mq-golang)
 
