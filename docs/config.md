@@ -265,3 +265,22 @@ Connectors that read from MQ series queues or topics can either rely on callback
 * `usepolling` - turn on polling instead of callbacks.
 * `incomingbuffersize` - the buffer size to use when polling for messages, the default is 8k.
 * `incomingmessagewait` - the wait time, in milliseconds to use while polling, longer times can effect shutdown responsiveness, the default is 500ms.
+
+## Reloading the configuration file
+
+On unix based systems, the MQ bridge can reload its configuration using the `kill` command.
+
+`kill -HUP <pid>`
+
+```bash
+$ ps
+  PID TTY           TIME CMD
+27441 tty1       0:00.04 -bash
+27481 tty1       0:00.01 nats-mq
+```
+
+Using the kill command, send a NOHUP signal to the `nats-mq` process specifying the pid.
+
+```bash
+$ kill -HUP 27481
+```
