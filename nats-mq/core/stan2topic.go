@@ -19,7 +19,7 @@ package core
 import (
 	"fmt"
 
-	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/ibm-messaging/mq-golang/v5/ibmmq"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
 	stan "github.com/nats-io/stan.go"
 )

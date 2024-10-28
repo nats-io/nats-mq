@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/ibm-messaging/mq-golang/v5/ibmmq"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
 	ns "github.com/nats-io/nats-server/v2/server"
 	nst "github.com/nats-io/nats-server/v2/test"

@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ibm-messaging/mq-golang/ibmmq"
+	"github.com/ibm-messaging/mq-golang/v5/ibmmq"
 	"github.com/nats-io/nats-mq/message"
 	"github.com/nats-io/nats-mq/nats-mq/conf"
 	"github.com/stretchr/testify/require"
