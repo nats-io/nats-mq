@@ -296,6 +296,10 @@ func (bridge *BridgeServer) connectToNATS() error {
 		options = append(options, nats.ClientCert(config.TLS.Cert, config.TLS.Key))
 	}
 
+	if config.CredsFile != "" {
+		options = append(options, nats.UserCredentials(config.CredsFile))
+	}
+
 	nc, err := nats.Connect(strings.Join(config.Servers, ","),
 		options...,
 	)
