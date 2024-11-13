@@ -115,6 +115,7 @@ The bridge makes a single connection to NATS. This connection is shared by all c
 ```yaml
 nats: {
   Servers: ["localhost:4222"],
+  CredsFile: "/etc/nats-creds/user.creds",
   ConnectTimeout: 5000,
   MaxReconnects: 5,
   ReconnectWait: 5000,
@@ -130,6 +131,7 @@ NATS can be configured with the following properties:
 * `tls` - (optional) [TLS configuration](#tls). If the NATS server uses unverified TLS with a valid certificate, this setting isn't required.
 * `username` - (optional)  depending on the NATS server configuration, user name for authentication.
 * `password` - (optional)  depending on the NATS server configuration, password for authentication.
+* `CredsFile` - (optional)  depending on the NATS server configuration, path to user credentials file(.creds).
 
 <a name="stan"></a>
 

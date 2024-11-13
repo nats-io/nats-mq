@@ -117,9 +117,10 @@ type NATSConfig struct {
 	ReconnectWait  int //milliseconds
 	MaxReconnects  int
 
-	TLS      TLSConf
-	Username string
-	Password string
+	TLS       TLSConf
+	Username  string
+	Password  string
+	CredsFile string
 }
 
 // NATSStreamingConfig configuration for a STAN connection
