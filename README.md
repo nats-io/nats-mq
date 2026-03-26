@@ -1,5 +1,9 @@
 # NATS-MQ Bridge
 
+> [!WARNING]
+> **This project is deprecated and no longer actively maintained.**
+> It may not receive further updates, bug fixes, or security patches. Use at your own risk.
+
 This project implements a simple, but generic, bridge between NATS or NATS streaming and MQ Series queues and topics.
 
 ## Features
