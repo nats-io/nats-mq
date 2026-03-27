@@ -42,7 +42,12 @@ func ConnectToQueueManager(mqconfig conf.MQConfig) (*ibmmq.MQQueueManager, error
 		tlsParams.CertificateLabel = mqconfig.CertificateLabel
 		connectionOptions.SSLConfig = tlsParams
 
-		channelDefinition.SSLCipherSpec = "TLS_RSA_WITH_AES_128_CBC_SHA256"
+		if mqconfig.SSLCipherSpec != "" {
+			channelDefinition.SSLCipherSpec = mqconfig.SSLCipherSpec
+		} else {
+			channelDefinition.SSLCipherSpec = "TLS_RSA_WITH_AES_128_CBC_SHA256"
+
+		}
 		channelDefinition.SSLPeerName = mqconfig.SSLPeerName
 		channelDefinition.CertificateLabel = mqconfig.CertificateLabel
 		channelDefinition.SSLClientAuth = int32(ibmmq.MQSCA_REQUIRED)

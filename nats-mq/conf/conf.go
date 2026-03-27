@@ -107,6 +107,7 @@ type MQConfig struct {
 	KeyRepository    string
 	CertificateLabel string
 	SSLPeerName      string
+	SSLCipherSpec    string
 }
 
 // NATSConfig configuration for a NATS connection
